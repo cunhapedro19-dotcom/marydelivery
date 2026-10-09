@@ -1,0 +1,16 @@
+# Dependências e build
+node_modules/
+.next/
+out/
+
+# Ambiente — o .env real NUNCA vai para o git (só o .env.example)
+.env
+.env.*
+!.env.example
+
+# Vários
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store
+npm-debug.log*
+.vercel

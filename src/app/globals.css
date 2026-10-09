@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system, Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Cardápio público — tons quentes de comida caseira */
+  --color-cream-50: #fffaf3;
+  --color-cream-100: #fdf1e2;
+  --color-cream-200: #f5e2c9;
+  --color-cream-300: #ead0ad;
+  --color-brand-50: #fdeee8;
+  --color-brand-100: #f9d6c8;
+  --color-brand-500: #d9572b;
+  --color-brand-600: #c1471f;
+  --color-brand-700: #a03a19;
+  --color-cocoa-900: #2b1d15;
+  --color-cocoa-700: #4f3b2f;
+  --color-cocoa-500: #86705f;
+  --color-leaf-50: #eaf6ec;
+  --color-leaf-500: #3f8f4f;
+  --color-leaf-600: #2f7a3e;
+
+  /* Painel administrativo — visual limpo e claro */
+  --color-admin-50: #f2f6f8;
+  --color-admin-100: #e1ebef;
+  --color-admin-600: #1f6f8b;
+  --color-admin-700: #175872;
+  --color-admin-800: #113f52;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+@layer components {
+  /* Botões grandes, fáceis de tocar */
+  .btn {
+    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl px-5 text-base font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-5 text-base font-bold text-white shadow-[0_8px_20px_rgba(217,87,43,0.35)] transition hover:bg-brand-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-cream-300 bg-white px-5 text-base font-bold text-cocoa-900 transition active:scale-[0.98] disabled:opacity-50;
+  }
+  .btn-admin {
+    @apply inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-admin-600 px-5 text-base font-bold text-white shadow-sm transition hover:bg-admin-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-admin-outline {
+    @apply inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-admin-600 bg-white px-5 text-base font-bold text-admin-700 transition active:scale-[0.98] disabled:opacity-60;
+  }
+  .btn-admin-soft {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-admin-50 px-4 text-sm font-bold text-admin-800 transition active:scale-[0.98] disabled:opacity-60;
+  }
+  .btn-danger-soft {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-red-50 px-4 text-sm font-bold text-red-700 transition active:scale-[0.98] disabled:opacity-60;
+  }
+  .admin-card {
+    @apply rounded-3xl border border-slate-200 bg-white p-5 shadow-sm;
+  }
+  .admin-link-card {
+    @apply flex min-h-16 items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-lg font-bold text-slate-800 shadow-sm transition active:scale-[0.99];
+  }
+  .input {
+    @apply w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-admin-600;
+  }
+  .input-public {
+    @apply w-full rounded-2xl border-2 border-cream-300 bg-white px-4 py-3.5 text-base text-cocoa-900 outline-none transition placeholder:text-cocoa-500/60 focus:border-brand-500;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-bold text-slate-700;
+  }
+  .option-card {
+    @apply flex w-full items-center gap-3 rounded-2xl border-2 border-cream-200 bg-white p-3 text-left transition active:scale-[0.99];
+  }
+  .option-card-selected {
+    @apply border-brand-500 bg-brand-50 ring-2 ring-brand-500/30;
+  }
+}
+
+/* Área segura em celulares com barra inferior */
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
