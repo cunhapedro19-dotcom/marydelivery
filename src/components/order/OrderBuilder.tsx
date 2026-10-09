@@ -24,14 +24,13 @@ import {
 } from "@/lib/order";
 
 type Sub = "meal" | MealSub;
-type Phase = "builder" | "cart" | "drinks" | "receiving" | "contact" | "payment" | "notes" | "review";
+type Phase = "builder" | "cart" | "receiving" | "contact" | "payment" | "notes" | "review";
 type View = { phase: "builder"; sub: Sub; lineKey: string } | { phase: Exclude<Phase, "builder"> };
 
-const PHASES: Phase[] = ["builder", "cart", "drinks", "receiving", "contact", "payment", "notes", "review"];
+const PHASES: Phase[] = ["builder", "cart", "receiving", "contact", "payment", "notes", "review"];
 const PHASE_LABELS: Record<Phase, string> = {
-  builder: "Produto",
+  builder: "Menu",
   cart: "Seu pedido",
-  drinks: "Bebida",
   receiving: "Recebimento",
   contact: "Seus dados",
   payment: "Pagamento",
@@ -78,7 +77,7 @@ function subsFor(meal: PublicMeal, menu: MenuData): Sub[] {
 
 export default function OrderBuilder({ menu }: { menu: MenuData }) {
   const { config } = menu;
-  const storageKey = `pedido-${config.slug}-v4`;
+  const storageKey = `pedido-${config.slug}-v5`;
   const receivingOptions = useMemo(() => availableReceivingModes(config), [config]);
 
   const [sel, setSel] = useState<OrderSelection>(emptySelection);
@@ -93,6 +92,8 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
   const order = useMemo(() => resolveOrder(menu, sel), [menu, sel]);
   const doneLines = order.lines;
   const receiving = order.receiving;
+  const drinksCount = order.drinks.reduce((s, d) => s + d.qty, 0);
+  const cartCount = doneLines.length + drinksCount;
 
   const currentLine = view.phase === "builder" ? (sel.lines.find((l) => l.key === view.lineKey) ?? null) : null;
   const currentMeal = currentLine ? (menu.meals.find((m) => m.id === currentLine.mealId) ?? null) : null;
@@ -118,10 +119,10 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
             restored = { phase: "builder", sub: "meal", lineKey: v.lineKey || newLineKey() };
           }
         } else if (v && PHASES.includes(v.phase)) {
-          restored = cleanSel.lines.some((l) => l.done) ? v : null;
+          restored = cleanSel.lines.some((l) => l.done) || Object.keys(cleanSel.drinkQty).length > 0 ? v : null;
         }
         if (restored) setView(restored);
-        else if (cleanSel.lines.some((l) => l.done)) setView({ phase: "cart" });
+        // Sem tela salva: fica no menu (de onde se adiciona itens)
       }
     } catch {
       /* ignora */
@@ -175,6 +176,21 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
       const fresh: MealLine = { key, mealId, proteinId: null, sideIds: [], extraIds: [], note: "", done: false };
       return { ...prev, lines: existing ? prev.lines.map((l) => (l.key === key ? fresh : l)) : [...prev.lines, fresh] };
     });
+    setError(null);
+  }
+  /** Adiciona o produto direto no pedido, sem passar pelas etapas de personalização. */
+  function quickAdd(meal: PublicMeal) {
+    // Produto que exige escolha (ex.: proteína) abre a montagem normal
+    if (meal.proteins.length > 0) {
+      if (view.phase !== "builder") return;
+      chooseMeal(meal.id);
+      setView({ phase: "builder", sub: "protein", lineKey: view.lineKey });
+      return;
+    }
+    setSel((prev) => ({
+      ...prev,
+      lines: [...prev.lines, { key: newLineKey(), mealId: meal.id, proteinId: null, sideIds: [], extraIds: [], note: "", done: true }],
+    }));
     setError(null);
   }
   function toggleSide(id: number) {
@@ -237,21 +253,20 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
   function removeLine(key: string) {
     const remaining = sel.lines.filter((l) => l.key !== key);
     setSel((prev) => ({ ...prev, lines: prev.lines.filter((l) => l.key !== key) }));
-    if (!remaining.some((l) => l.done)) startNewMeal();
+    // Se ainda tem bebida no pedido, fica no carrinho em vez de voltar pra montagem
+    if (!remaining.some((l) => l.done) && drinksCount === 0) startNewMeal();
   }
 
   function previousView(): View | null {
     if (view.phase === "builder") {
-      if (view.sub === "meal") return doneLines.some((l) => l.key !== view.lineKey) ? { phase: "cart" } : null;
+      // O menu é a primeira tela: voltar sai do pedido (pra home).
+      // O botão "Ver pedido" no rodapé é que leva ao carrinho.
+      if (view.sub === "meal") return null;
       const idx = currentSubs.indexOf(view.sub);
       return { phase: "builder", lineKey: view.lineKey, sub: currentSubs[Math.max(idx - 1, 0)] };
     }
-    if (view.phase === "cart") {
-      const last = doneLines[doneLines.length - 1];
-      if (!last) return null;
-      const subs = subsFor(last.meal, menu);
-      return { phase: "builder", lineKey: last.key, sub: subs[subs.length - 1] };
-    }
+    // Do carrinho, voltar sempre leva pro menu (de onde se adiciona itens)
+    if (view.phase === "cart") return { phase: "builder", sub: "meal", lineKey: newLineKey() };
     const idx = PHASES.indexOf(view.phase);
     return { phase: PHASES[idx - 1] as Exclude<Phase, "builder"> };
   }
@@ -264,13 +279,15 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
     const c = sel.customer;
     switch (view.phase) {
       case "builder":
+        // Na lista do menu dá pra continuar só com bebida (ou com o que já está no pedido)
+        if (view.sub === "meal" && !currentMeal) return cartCount > 0 ? null : "Adicione um produto ou uma bebida para continuar.";
         if (!currentLine || !currentMeal) return "Escolha um produto para continuar.";
         if (view.sub === "protein" && !currentLine.proteinId) return "Escolha a proteína para continuar.";
         return null;
       case "cart":
-        return doneLines.length ? null : "Adicione pelo menos um produto.";
-      case "drinks":
-        return config.drinkRequired && order.drinks.length === 0 ? "Escolha uma bebida para continuar." : null;
+        if (!doneLines.length && !order.drinks.length) return "Adicione pelo menos um item ao pedido.";
+        if (config.drinkRequired && order.drinks.length === 0) return "Escolha pelo menos uma bebida para continuar.";
+        return null;
       case "receiving":
         if (receivingOptions.length === 0) return "O estabelecimento ainda não configurou como entrega os pedidos.";
         return sel.receivingMode ? null : "Escolha como você deseja receber.";
@@ -310,8 +327,11 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
     if (view.phase === "builder" && currentLine) {
       const idx = currentSubs.indexOf(view.sub);
       if (idx >= currentSubs.length - 1) {
+        const wasEditing = currentLine.done;
         updateLine(currentLine.key, { done: true });
-        setView({ phase: "cart" });
+        // Depois de adicionar um item, volta pro MENU pra poder adicionar mais
+        // sem fechar o pedido (só quem estava editando um item do carrinho volta pra ele)
+        setView(wasEditing ? { phase: "cart" } : { phase: "builder", sub: "meal", lineKey: newLineKey() });
       } else {
         setView({ phase: "builder", lineKey: currentLine.key, sub: currentSubs[idx + 1] });
       }
@@ -373,7 +393,6 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
   } else {
     const t: Record<Exclude<Phase, "builder">, string> = {
       cart: "Seu pedido",
-      drinks: "Escolha sua bebida",
       receiving: "Como você deseja receber?",
       contact: receiving?.needsAddress ? "Endereço de entrega" : "Quem vai retirar?",
       payment: "Como você vai pagar?",
@@ -385,14 +404,13 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
 
   let primaryLabel = "Continuar";
   if (view.phase === "builder") {
-    if (view.sub === "meal") primaryLabel = currentMeal && currentSubs.length === 1 ? "Adicionar ao pedido" : "Montar";
+    if (view.sub === "meal" && !currentMeal) primaryLabel = cartCount > 0 ? `Ver pedido (${cartCount})` : "Continuar";
+    else if (view.sub === "meal") primaryLabel = currentLine?.done ? "Salvar" : currentSubs.length === 1 ? "Adicionar ao pedido" : "Montar";
     else if (isLastSub) primaryLabel = currentLine?.done ? "Salvar" : "Adicionar ao pedido";
-  } else if (view.phase === "cart") primaryLabel = "Escolher bebida";
-  else if (view.phase === "notes") primaryLabel = "Revisar pedido";
+  } else if (view.phase === "notes") primaryLabel = "Revisar pedido";
 
   const lineNumber = currentLine ? sel.lines.findIndex((l) => l.key === currentLine.key) + 1 : 0;
   const sidesCount = currentLine?.sideIds.length ?? 0;
-  const drinksCount = order.drinks.reduce((s, d) => s + d.qty, 0);
 
   // Agrupa os produtos por categoria (quando o estabelecimento usa categorias)
   const mealGroups = useMemo(() => {
@@ -446,38 +464,51 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {/* ---------- Escolha do produto ---------- */}
         {view.phase === "builder" && view.sub === "meal" && (
           <div className="space-y-3">
-            {doneLines.length > 0 && (
+            {cartCount > 0 && (
               <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm font-bold text-white/80">
-                🛒 Seu pedido já tem {doneLines.length} {doneLines.length === 1 ? "item" : "itens"} — pode adicionar mais.
+                🛒 Seu pedido já tem {cartCount} {cartCount === 1 ? "item" : "itens"} — pode adicionar mais.
               </p>
             )}
+            {menu.meals.length > 0 && <p className="px-1 text-sm text-white/55">Toque no produto pra escolher as opções, ou no + pra adicionar direto.</p>}
             {menu.meals.length === 0 && <EmptyNotice text="Nenhum produto disponível no momento." />}
             {mealGroups.map((group) => (
               <div key={group.name || "_"} className="space-y-3">
                 {showGroupTitles && <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-neon-gold">{group.name || "Outros"}</h2>}
                 {group.meals.map((m) => {
                   const selected = currentLine?.mealId === m.id;
+                  // Quantos deste produto já estão no pedido (mostra a seleção múltipla)
+                  const addedCount = doneLines.filter((l) => l.mealId === m.id).length;
                   const hints: string[] = [];
                   if (m.proteins.length) hints.push("você escolhe a proteína");
                   if (m.choices.length && m.maxChoices > 0) hints.push(`até ${m.maxChoices} acompanhamento${m.maxChoices === 1 ? "" : "s"} à sua escolha`);
                   return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => chooseMeal(m.id)}
-                      className={`option-card flex-col !items-stretch !p-0 overflow-hidden ${selected ? "option-card-selected" : ""}`}
-                      aria-pressed={selected}
-                    >
+                    <div key={m.id} className={`option-card flex-col !items-stretch !p-0 overflow-hidden ${selected ? "option-card-selected" : ""}`}>
                       {m.imageUrl && <img src={m.imageUrl} alt={m.name} className="h-44 w-full object-cover" loading="lazy" />}
                       <div className="p-4">
                         <div className="flex items-center gap-3">
-                          <Radio checked={selected} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-lg font-extrabold leading-tight">{m.name}</p>
-                            {m.description && <p className="mt-0.5 text-sm text-white/55">{m.description}</p>}
-                          </div>
-                          <p className="shrink-0 text-base font-extrabold text-neon-gold">{formatBRL(m.priceCents)}</p>
+                          <button
+                            type="button"
+                            onClick={() => chooseMeal(m.id)}
+                            aria-pressed={selected}
+                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          >
+                            <Radio checked={selected} />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-lg font-extrabold leading-tight">{m.name}</span>
+                              {m.description && <span className="mt-0.5 block text-sm text-white/55">{m.description}</span>}
+                            </span>
+                            <span className="shrink-0 text-base font-extrabold text-neon-gold">{formatBRL(m.priceCents)}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => quickAdd(m)}
+                            aria-label={`Adicionar ${m.name} ao pedido`}
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-neon-pink text-xl font-extrabold text-white shadow-[0_0_14px_rgba(255,46,136,0.4)] active:scale-90"
+                          >
+                            +
+                          </button>
                         </div>
+                        {addedCount > 0 && <p className="mt-2 text-sm font-bold text-neon-cyan">✓ {addedCount} no pedido</p>}
                         {m.included.length > 0 && (
                           <p className="mt-3 text-sm text-white/80">
                             <span className="font-bold">Já acompanha:</span> {m.included.map((i) => `${emojiFor(i.name)} ${i.name}`).join(" · ")}
@@ -485,11 +516,20 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                         )}
                         {hints.length > 0 && <p className="mt-1 text-xs font-semibold text-neon-cyan">✓ {hints.join(" · ")}</p>}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
             ))}
+            {/* Bebidas no menu: dá pra comprar só bebida, sem produto principal */}
+            {menu.drinks.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-neon-gold">Bebidas</h2>
+                {menu.drinks.map((d) => (
+                  <DrinkRow key={d.id} item={d} qty={sel.drinkQty[String(d.id)] ?? 0} onQty={(q) => setDrinkQty(d.id, q)} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -561,7 +601,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {/* ---------- Carrinho ---------- */}
         {view.phase === "cart" && (
           <div className="space-y-4">
-            {doneLines.length === 0 && <EmptyNotice text="Nenhum produto no pedido ainda." />}
+            {doneLines.length === 0 && drinksCount === 0 && <EmptyNotice text="Nenhum item no pedido ainda." />}
             {doneLines.map((l, index) => (
               <article key={l.key} className="rounded-3xl border border-night-800 bg-night-900 p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -585,42 +625,19 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                 </div>
               </article>
             ))}
+            {menu.drinks.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-neon-gold">Bebidas</h2>
+                {config.drinkRequired && <p className="text-sm text-white/55">Escolha pelo menos uma bebida para continuar.</p>}
+                {menu.drinks.map((d) => (
+                  <DrinkRow key={d.id} item={d} qty={sel.drinkQty[String(d.id)] ?? 0} onQty={(q) => setDrinkQty(d.id, q)} />
+                ))}
+              </div>
+            )}
             <button type="button" onClick={startNewMeal} className="btn-dark w-full !border-dashed">
               ＋ Adicionar outro item
             </button>
             <Totals subtotal={order.subtotal} receivingMode={sel.receivingMode} />
-          </div>
-        )}
-
-        {/* ---------- Bebidas ---------- */}
-        {view.phase === "drinks" && (
-          <div className="space-y-3">
-            {!config.drinkRequired && (
-              <button type="button" onClick={() => update({ drinkQty: {} })} className={`option-card ${drinksCount === 0 ? "option-card-selected" : ""}`} aria-pressed={drinksCount === 0}>
-                <Radio checked={drinksCount === 0} />
-                <span className="flex-1 text-base font-extrabold">Sem bebida</span>
-              </button>
-            )}
-            {config.drinkRequired && <p className="text-sm text-white/55">Escolha pelo menos uma bebida para continuar.</p>}
-            {menu.drinks.length === 0 && <EmptyNotice text="Nenhuma bebida disponível no momento." />}
-            {menu.drinks.map((d) => {
-              const qty = sel.drinkQty[String(d.id)] ?? 0;
-              return (
-                <div key={d.id} className={`option-card ${qty > 0 ? "option-card-selected" : ""}`}>
-                  {d.imageUrl && <img src={d.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />}
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-base font-extrabold leading-tight">{d.name}</span>
-                    {d.description && <span className="mt-0.5 block text-sm text-white/55">{d.description}</span>}
-                    <span className="mt-0.5 block text-sm font-extrabold text-neon-gold">{formatBRL(d.priceCents)}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    <button type="button" aria-label={`Menos ${d.name}`} onClick={() => setDrinkQty(d.id, qty - 1)} disabled={qty === 0} className="grid h-11 w-11 place-items-center rounded-full border-2 border-night-700 bg-night-800 text-xl font-extrabold text-white disabled:opacity-30">−</button>
-                    <span className="w-6 text-center text-lg font-extrabold">{qty}</span>
-                    <button type="button" aria-label={`Mais ${d.name}`} onClick={() => setDrinkQty(d.id, qty + 1)} className="grid h-11 w-11 place-items-center rounded-full bg-neon-pink text-xl font-extrabold text-white">+</button>
-                  </span>
-                </div>
-              );
-            })}
           </div>
         )}
 
@@ -925,6 +942,25 @@ function OptionRow({ item, selected, dimmed, kind, onClick, priceMode }: { item:
       </span>
       {item.priceCents > 0 && <span className="shrink-0 text-sm font-extrabold text-neon-gold">{priceMode === "extra" ? `+ ${formatBRL(item.priceCents)}` : formatBRL(item.priceCents)}</span>}
     </button>
+  );
+}
+
+/** Linha de bebida com contador — usada no menu e no carrinho (a bebida pode ser comprada sozinha). */
+function DrinkRow({ item, qty, onQty }: { item: MenuItem; qty: number; onQty: (qty: number) => void }) {
+  return (
+    <div className={`option-card ${qty > 0 ? "option-card-selected" : ""}`}>
+      {item.imageUrl && <img src={item.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />}
+      <span className="min-w-0 flex-1">
+        <span className="block text-base font-extrabold leading-tight">{item.name}</span>
+        {item.description && <span className="mt-0.5 block text-sm text-white/55">{item.description}</span>}
+        <span className="mt-0.5 block text-sm font-extrabold text-neon-gold">{formatBRL(item.priceCents)}</span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5">
+        <button type="button" aria-label={`Menos ${item.name}`} onClick={() => onQty(qty - 1)} disabled={qty === 0} className="grid h-11 w-11 place-items-center rounded-full border-2 border-night-700 bg-night-800 text-xl font-extrabold text-white disabled:opacity-30">−</button>
+        <span className="w-6 text-center text-lg font-extrabold">{qty}</span>
+        <button type="button" aria-label={`Mais ${item.name}`} onClick={() => onQty(qty + 1)} className="grid h-11 w-11 place-items-center rounded-full bg-neon-pink text-xl font-extrabold text-white">+</button>
+      </span>
+    </div>
   );
 }
 

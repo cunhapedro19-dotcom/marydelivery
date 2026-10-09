@@ -5,14 +5,13 @@
 --
 -- O que ele faz:
 --   1) Atualiza os dados do negócio (frase, horário, entrega, iFood);
---   2) Apaga o cardápio de EXEMPLO do Mary Delivery;
---   3) Insere o cardápio real: 19 produtos + 3 adicionais.
+--   2) Apaga o cardápio atual do Mary Delivery (produtos, adicionais e bebidas);
+--   3) Insere o cardápio real: 22 produtos + 3 adicionais + 30 bebidas.
 --
 -- Pode rodar de novo sem duplicar: ele substitui o cardápio atual por este.
+-- (Se você cadastrou bebida no painel manualmente, ela é substituída por esta lista.)
 --
 -- Fica de fora (o cardápio físico não mostra):
---   - bebidas avulsas (Guaravita, Guaraná 1L) — cadastre no painel em
---     Cardápio → Adicionais e Bebidas, ou me passe os preços;
 --   - dias de funcionamento e endereço de retirada — Configurações do painel.
 -- ═══════════════════════════════════════════════════════════════════════
 
@@ -28,7 +27,7 @@ update establishments set
   updated_at           = now()
 where slug = 'mary-delivery';
 
--- 2) Limpa o cardápio de exemplo (só os itens do Mary Delivery)
+-- 2) Limpa o cardápio atual (produtos, adicionais e bebidas do Mary Delivery)
 delete from meal_items
   where meal_id in (
     select id from meals
@@ -78,14 +77,62 @@ from establishments e, (values
   -- PORÇÕES
   ('Nugget + Anel de Cebola', 'Porções', '', 2500, 1, false),
   ('Nugget + Batata',         'Porções', '', 2500, 2, false),
-  ('Só Nugget',               'Porções', '', 1000, 3, false)
+  ('Só Nugget',               'Porções', '', 1000, 3, false),
+  -- BOXES DE FRANGO FRITO (pedaços são diferentes de tiras — nomes como no cardápio físico)
+  ('Box com 10 tiras de filé de frango', 'Boxes', 'Tiras de filé de frango frito e crocante + molho especial', 2490, 1, false),
+  ('Box Frango P (6 pedaços)',           'Boxes', '6 pedaços de frango frito crocante + um molho especial',     2490, 2, false),
+  ('Box Frango M (12 pedaços)',          'Boxes', '12 pedaços de frango frito crocante + um molho especial',    4490, 3, false)
 ) as m(name, category, description, price, ord, extras)
+where e.slug = 'mary-delivery';
+
+-- 5) Bebidas da casa (o nome já leva o tamanho, pra não confundir na hora do pedido)
+insert into menu_items (establishment_id, category, name, price_cents, sort_order)
+select e.id, 'drink', x.name, x.price, x.ord
+from establishments e, (values
+  ('Coca-Cola Lata',           700, 1),
+  ('Coca-Cola Zero Lata',      700, 2),
+  ('Fanta Laranja Lata',       700, 3),
+  ('Fanta Uva Lata',           700, 4),
+  ('Guaraná Antártica Lata',   700, 5),
+  ('Sprite Lata',              700, 6),
+  ('Guaraviton Açaí 500ml',    600, 7),
+  ('Guaraviton Natural 500ml', 600, 8),
+  ('Guaravita 290ml',          400, 9),
+  ('H2O de Limão 500ml',       800, 10),
+  ('H2O de Limoneto 500ml',    800, 11),
+  ('Guaraná Antártica 1L',     900, 12),
+  ('Convenção de Uva 2L',     1100, 13),
+  ('Convenção de Limão 2L',   1100, 14),
+  ('Convenção de Guaraná',    1100, 15),
+  ('Sprite 2L',               1500, 16),
+  ('Fanta Laranja 2L',        1500, 17),
+  ('Fanta Uva 2L',            1500, 18),
+  ('Coca-Cola 2L',            2000, 19),
+  ('Coca-Cola Zero 2L',       2000, 20),
+  -- Sucos (300ml; "ao leite" leva o leite no nome, os outros são naturais)
+  ('Maracujá ao leite 300ml',  1000, 21),
+  ('Morango ao leite 300ml',   1000, 22),
+  ('Acerola 300ml',             700, 23),
+  ('Laranja 300ml',             700, 24),
+  ('Maracujá 300ml',            700, 25),
+  ('Morango 300ml',             700, 26),
+  ('Abacaxi 300ml',             700, 27),
+  ('Abacaxi com Hortelã 300ml', 700, 28),
+  ('Manga 300ml',               700, 29),
+  ('Goiaba 300ml',              700, 30)
+) as x(name, price, ord)
 where e.slug = 'mary-delivery';
 
 commit;
 
--- Confere o resultado: deve listar os 19 produtos com os preços
+-- Confere o resultado: deve listar os 22 produtos com os preços
 select category, name, price_cents / 100.0 as preco
 from meals
+where establishment_id = (select id from establishments where slug = 'mary-delivery')
+order by category, sort_order;
+
+-- ...e os 33 adicionais + bebidas
+select category, name, price_cents / 100.0 as preco
+from menu_items
 where establishment_id = (select id from establishments where slug = 'mary-delivery')
 order by category, sort_order;
