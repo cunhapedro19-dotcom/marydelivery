@@ -38,7 +38,7 @@ const PHASE_LABELS: Record<Phase, string> = {
   notes: "Observações",
   review: "Confirmar",
 };
-const NOTE_SUGGESTIONS = ["Sem cebola", "Sem feijão", "Sem salada", "Pouco sal", "Molho separado", "Sem pimenta", "Bem passado"];
+const NOTE_SUGGESTIONS = ["Sem cebola", "Sem tomate", "Sem alface", "Sem maionese", "Sem picles", "Molho à parte", "Bem passado"];
 
 type Persisted = { sel: OrderSelection; view: View };
 
@@ -446,6 +446,11 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {/* ---------- Escolha do produto ---------- */}
         {view.phase === "builder" && view.sub === "meal" && (
           <div className="space-y-3">
+            {doneLines.length > 0 && (
+              <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm font-bold text-white/80">
+                🛒 Seu pedido já tem {doneLines.length} {doneLines.length === 1 ? "item" : "itens"} — pode adicionar mais.
+              </p>
+            )}
             {menu.meals.length === 0 && <EmptyNotice text="Nenhum produto disponível no momento." />}
             {mealGroups.map((group) => (
               <div key={group.name || "_"} className="space-y-3">
@@ -541,7 +546,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "builder" && view.sub === "note" && currentMeal && currentLine && (
           <div className="space-y-3">
             <IncludedBlock meal={currentMeal} chosen={currentResolved?.chosen} protein={currentResolved?.protein ?? null} extras={currentResolved?.extras} />
-            <p className="text-sm text-white/55">Opcional. Ex.: sem cebola, sem feijão, pouco sal...</p>
+            <p className="text-sm text-white/55">Opcional. Ex.: sem cebola, sem tomate, bem passado...</p>
             <textarea className="input-public min-h-32" placeholder="Digite uma observação para este item..." value={currentLine.note} maxLength={300} onChange={(e) => updateLine(currentLine.key, { note: e.target.value })} />
             <div className="flex flex-wrap gap-2">
               {NOTE_SUGGESTIONS.map((s) => (
@@ -729,7 +734,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {/* ---------- Observações do pedido ---------- */}
         {view.phase === "notes" && (
           <div className="space-y-3">
-            <p className="text-sm text-white/55">Opcional. Vale para o pedido todo. Ex.: molho separado, não colocar pimenta, tocar a campainha...</p>
+            <p className="text-sm text-white/55">Opcional. Vale para o pedido todo. Ex.: molho à parte, sem pimenta, deixar na portaria...</p>
             <textarea className="input-public min-h-36" placeholder="Digite uma observação para este pedido..." value={sel.note} maxLength={400} onChange={(e) => update({ note: e.target.value })} />
             {doneLines.some((l) => l.note) && (
               <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm text-white/80">
@@ -869,7 +874,8 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
 /* ---------- Componentes auxiliares ---------- */
 
 function IncludedBlock({ meal, protein, chosen, extras }: { meal: PublicMeal; protein?: MenuItem | null; chosen?: MenuItem[]; extras?: MenuItem[] }) {
-  const parts: string[] = [];
+  // O produto escolhido vem primeiro, depois proteína, inclusos e adicionais
+  const parts: string[] = [`${emojiFor(meal.name, "🍔")} ${meal.name}`];
   if (protein) parts.push(`${emojiFor(protein.name)} ${protein.name}`);
   meal.included.forEach((i) => parts.push(`${emojiFor(i.name)} ${i.name}`));
   chosen?.forEach((i) => parts.push(`${emojiFor(i.name)} ${i.name}`));
