@@ -415,30 +415,30 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         : "Entrega (se houver): consultar pelo WhatsApp";
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-cream-50 sm:my-6 sm:min-h-0 sm:rounded-[2rem] sm:shadow-xl">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-night-950 sm:my-6 sm:min-h-0 sm:rounded-[2rem] sm:shadow-xl">
       {/* Cabeçalho com progresso */}
-      <header className="sticky top-0 z-20 border-b border-cream-200 bg-cream-50/95 px-4 pb-3 pt-3 backdrop-blur sm:rounded-t-[2rem]">
+      <header className="sticky top-0 z-20 border-b border-night-800 bg-night-950/95 px-4 pb-3 pt-3 backdrop-blur sm:rounded-t-[2rem]">
         <div className="flex items-center gap-3">
           {prev ? (
-            <button type="button" onClick={back} aria-label="Voltar" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-xl shadow-sm">
+            <button type="button" onClick={back} aria-label="Voltar" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-night-800 text-xl shadow-sm">
               ←
             </button>
           ) : (
-            <Link href={`/${config.slug}`} aria-label="Voltar ao início" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-xl shadow-sm">
+            <Link href={`/${config.slug}`} aria-label="Voltar ao início" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-night-800 text-xl shadow-sm">
               ←
             </Link>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-bold uppercase tracking-wide text-cocoa-500">
+            <p className="truncate text-xs font-bold uppercase tracking-wide text-white/55">
               Etapa {phaseIndex + 1} de {PHASES.length} · {PHASE_LABELS[view.phase]}
               {view.phase === "builder" && currentMeal && sel.lines.length > 1 ? ` ${lineNumber}` : ""}
               {view.phase === "builder" && currentMeal && view.sub !== "meal" ? ` · ${currentMeal.name}` : ""}
             </p>
-            <h1 className="truncate text-lg font-extrabold leading-tight">{title}</h1>
+            <h1 className="truncate font-display text-xl leading-tight tracking-wide">{title}</h1>
           </div>
         </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-cream-200">
-          <div className="h-full rounded-full bg-brand-500 transition-all duration-300" style={{ width: `${((phaseIndex + 1) / PHASES.length) * 100}%` }} />
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-night-800">
+          <div className="h-full rounded-full bg-neon-pink shadow-[0_0_14px_rgba(255,46,136,0.55)] transition-all duration-300" style={{ width: `${((phaseIndex + 1) / PHASES.length) * 100}%` }} />
         </div>
       </header>
 
@@ -449,7 +449,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
             {menu.meals.length === 0 && <EmptyNotice text="Nenhum produto disponível no momento." />}
             {mealGroups.map((group) => (
               <div key={group.name || "_"} className="space-y-3">
-                {showGroupTitles && <h2 className="px-1 pt-2 text-xs font-bold uppercase tracking-wide text-cocoa-500">{group.name || "Outros"}</h2>}
+                {showGroupTitles && <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-neon-gold">{group.name || "Outros"}</h2>}
                 {group.meals.map((m) => {
                   const selected = currentLine?.mealId === m.id;
                   const hints: string[] = [];
@@ -469,16 +469,16 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                           <Radio checked={selected} />
                           <div className="min-w-0 flex-1">
                             <p className="text-lg font-extrabold leading-tight">{m.name}</p>
-                            {m.description && <p className="mt-0.5 text-sm text-cocoa-500">{m.description}</p>}
+                            {m.description && <p className="mt-0.5 text-sm text-white/55">{m.description}</p>}
                           </div>
-                          <p className="shrink-0 text-base font-extrabold text-brand-600">{formatBRL(m.priceCents)}</p>
+                          <p className="shrink-0 text-base font-extrabold text-neon-gold">{formatBRL(m.priceCents)}</p>
                         </div>
                         {m.included.length > 0 && (
-                          <p className="mt-3 text-sm text-cocoa-700">
+                          <p className="mt-3 text-sm text-white/80">
                             <span className="font-bold">Já acompanha:</span> {m.included.map((i) => `${emojiFor(i.name)} ${i.name}`).join(" · ")}
                           </p>
                         )}
-                        {hints.length > 0 && <p className="mt-1 text-xs font-semibold text-leaf-600">✓ {hints.join(" · ")}</p>}
+                        {hints.length > 0 && <p className="mt-1 text-xs font-semibold text-neon-cyan">✓ {hints.join(" · ")}</p>}
                       </div>
                     </button>
                   );
@@ -502,22 +502,22 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "builder" && view.sub === "sides" && currentMeal && currentLine && (
           <div className="space-y-3">
             {currentMeal.included.length > 0 && (
-              <section className="rounded-2xl border border-leaf-500/30 bg-leaf-50 p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-leaf-600">Já inclusos</p>
+              <section className="rounded-2xl border border-neon-cyan/25 bg-neon-cyan/10 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-neon-cyan">Já inclusos</p>
                 <ul className="mt-1.5 space-y-1">
                   {currentMeal.included.map((i) => (
                     <li key={i.id} className="flex items-center gap-2 font-bold">
-                      <span className="text-leaf-600">✓</span>
+                      <span className="text-neon-cyan">✓</span>
                       <span>{emojiFor(i.name)} {i.name}</span>
                     </li>
                   ))}
                 </ul>
               </section>
             )}
-            <div className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${limitNotice ? "bg-brand-500 text-white" : "bg-cream-100 text-cocoa-700"}`} role="status" aria-live="polite">
+            <div className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${limitNotice ? "bg-neon-pink text-white" : "bg-night-800 text-white/80"}`} role="status" aria-live="polite">
               {limitNotice ?? `Você escolheu ${sidesCount} de ${maxChoices} acompanhamento${maxChoices === 1 ? "" : "s"}.`}
             </div>
-            <p className="px-1 text-xs font-bold uppercase tracking-wide text-cocoa-500">Escolha até {maxChoices}</p>
+            <p className="px-1 text-xs font-bold uppercase tracking-wide text-white/55">Escolha até {maxChoices}</p>
             {currentMeal.choices.map((s) => {
               const selected = currentLine.sideIds.includes(s.id);
               const full = !selected && sidesCount >= maxChoices;
@@ -530,7 +530,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "builder" && view.sub === "extras" && currentMeal && currentLine && (
           <div className="space-y-3">
             <IncludedBlock meal={currentMeal} chosen={currentResolved?.chosen} protein={currentResolved?.protein ?? null} />
-            <p className="text-sm text-cocoa-500">Opcional. Toque para adicionar quantos quiser.</p>
+            <p className="text-sm text-white/55">Opcional. Toque para adicionar quantos quiser.</p>
             {menu.extras.map((e) => (
               <OptionRow key={e.id} item={e} selected={currentLine.extraIds.includes(e.id)} kind="check" onClick={() => toggleExtra(e.id)} priceMode="extra" />
             ))}
@@ -541,11 +541,11 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "builder" && view.sub === "note" && currentMeal && currentLine && (
           <div className="space-y-3">
             <IncludedBlock meal={currentMeal} chosen={currentResolved?.chosen} protein={currentResolved?.protein ?? null} extras={currentResolved?.extras} />
-            <p className="text-sm text-cocoa-500">Opcional. Ex.: sem cebola, sem feijão, pouco sal...</p>
+            <p className="text-sm text-white/55">Opcional. Ex.: sem cebola, sem feijão, pouco sal...</p>
             <textarea className="input-public min-h-32" placeholder="Digite uma observação para este item..." value={currentLine.note} maxLength={300} onChange={(e) => updateLine(currentLine.key, { note: e.target.value })} />
             <div className="flex flex-wrap gap-2">
               {NOTE_SUGGESTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => appendNote(s)} className="min-h-10 rounded-full bg-cream-100 px-3 text-sm font-bold text-cocoa-700 active:scale-95">
+                <button key={s} type="button" onClick={() => appendNote(s)} className="min-h-10 rounded-full bg-night-800 px-3 text-sm font-bold text-white/80 active:scale-95">
                   + {s}
                 </button>
               ))}
@@ -558,13 +558,13 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
           <div className="space-y-4">
             {doneLines.length === 0 && <EmptyNotice text="Nenhum produto no pedido ainda." />}
             {doneLines.map((l, index) => (
-              <article key={l.key} className="rounded-3xl border border-cream-200 bg-white p-4">
+              <article key={l.key} className="rounded-3xl border border-night-800 bg-night-900 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    {doneLines.length > 1 && <p className="text-xs font-bold uppercase tracking-wide text-cocoa-500">Item {index + 1}</p>}
+                    {doneLines.length > 1 && <p className="text-xs font-bold uppercase tracking-wide text-white/55">Item {index + 1}</p>}
                     <p className="text-lg font-extrabold leading-tight">{emojiFor(l.meal.name, "🍽️")} {l.meal.name}</p>
                   </div>
-                  <p className="shrink-0 font-extrabold text-brand-600">{formatBRL(l.price)}</p>
+                  <p className="shrink-0 font-extrabold text-neon-gold">{formatBRL(l.price)}</p>
                 </div>
                 <div className="mt-3 space-y-2">
                   {l.protein && <Detail label="Proteína" items={[`${l.protein.name}${l.protein.priceCents ? ` + ${formatBRL(l.protein.priceCents)}` : ""}`]} />}
@@ -574,13 +574,13 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                   {l.note && <Detail label="Observação" items={[l.note]} highlight />}
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2">
-                  <button type="button" onClick={() => editLine(l)} className="min-h-11 rounded-xl bg-cream-100 text-sm font-bold text-cocoa-900 active:scale-95">✏️ Editar</button>
-                  <button type="button" onClick={() => duplicateLine(l)} className="min-h-11 rounded-xl bg-cream-100 text-sm font-bold text-cocoa-900 active:scale-95">＋ Repetir</button>
-                  <button type="button" onClick={() => removeLine(l.key)} className="min-h-11 rounded-xl bg-red-50 text-sm font-bold text-red-700 active:scale-95">🗑 Remover</button>
+                  <button type="button" onClick={() => editLine(l)} className="min-h-11 rounded-xl bg-night-800 text-sm font-bold text-white active:scale-95">✏️ Editar</button>
+                  <button type="button" onClick={() => duplicateLine(l)} className="min-h-11 rounded-xl bg-night-800 text-sm font-bold text-white active:scale-95">＋ Repetir</button>
+                  <button type="button" onClick={() => removeLine(l.key)} className="min-h-11 rounded-xl bg-red-500/15 text-sm font-bold text-red-300 active:scale-95">🗑 Remover</button>
                 </div>
               </article>
             ))}
-            <button type="button" onClick={startNewMeal} className="btn-secondary w-full !border-dashed">
+            <button type="button" onClick={startNewMeal} className="btn-dark w-full !border-dashed">
               ＋ Adicionar outro item
             </button>
             <Totals subtotal={order.subtotal} receivingMode={sel.receivingMode} />
@@ -596,7 +596,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                 <span className="flex-1 text-base font-extrabold">Sem bebida</span>
               </button>
             )}
-            {config.drinkRequired && <p className="text-sm text-cocoa-500">Escolha pelo menos uma bebida para continuar.</p>}
+            {config.drinkRequired && <p className="text-sm text-white/55">Escolha pelo menos uma bebida para continuar.</p>}
             {menu.drinks.length === 0 && <EmptyNotice text="Nenhuma bebida disponível no momento." />}
             {menu.drinks.map((d) => {
               const qty = sel.drinkQty[String(d.id)] ?? 0;
@@ -605,13 +605,13 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                   {d.imageUrl && <img src={d.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />}
                   <span className="min-w-0 flex-1">
                     <span className="block text-base font-extrabold leading-tight">{d.name}</span>
-                    {d.description && <span className="mt-0.5 block text-sm text-cocoa-500">{d.description}</span>}
-                    <span className="mt-0.5 block text-sm font-extrabold text-brand-600">{formatBRL(d.priceCents)}</span>
+                    {d.description && <span className="mt-0.5 block text-sm text-white/55">{d.description}</span>}
+                    <span className="mt-0.5 block text-sm font-extrabold text-neon-gold">{formatBRL(d.priceCents)}</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5">
-                    <button type="button" aria-label={`Menos ${d.name}`} onClick={() => setDrinkQty(d.id, qty - 1)} disabled={qty === 0} className="grid h-11 w-11 place-items-center rounded-full border-2 border-cream-300 bg-white text-xl font-extrabold text-cocoa-900 disabled:opacity-30">−</button>
+                    <button type="button" aria-label={`Menos ${d.name}`} onClick={() => setDrinkQty(d.id, qty - 1)} disabled={qty === 0} className="grid h-11 w-11 place-items-center rounded-full border-2 border-night-700 bg-night-800 text-xl font-extrabold text-white disabled:opacity-30">−</button>
                     <span className="w-6 text-center text-lg font-extrabold">{qty}</span>
-                    <button type="button" aria-label={`Mais ${d.name}`} onClick={() => setDrinkQty(d.id, qty + 1)} className="grid h-11 w-11 place-items-center rounded-full bg-brand-500 text-xl font-extrabold text-white">+</button>
+                    <button type="button" aria-label={`Mais ${d.name}`} onClick={() => setDrinkQty(d.id, qty + 1)} className="grid h-11 w-11 place-items-center rounded-full bg-neon-pink text-xl font-extrabold text-white">+</button>
                   </span>
                 </div>
               );
@@ -630,18 +630,18 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                   <Radio checked={selected} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-base font-extrabold leading-tight">{opt.emoji} {opt.label}</span>
-                    <span className="mt-0.5 block text-sm text-cocoa-500">{opt.description}</span>
+                    <span className="mt-0.5 block text-sm text-white/55">{opt.description}</span>
                   </span>
                 </button>
               );
             })}
             {receiving && receiving.mode !== "pickup" && (
-              <p className="rounded-2xl bg-cream-100 px-4 py-3 text-sm text-cocoa-700">
+              <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm text-white/80">
                 🛵 O valor da entrega não é cobrado aqui: ele é combinado pelo WhatsApp depois que você enviar o pedido.
                 {config.deliveryAreas && <> Atendemos: {config.deliveryAreas}.</>}
               </p>
             )}
-            {config.deliveryNotes && <p className="rounded-2xl bg-cream-100 px-4 py-3 text-sm text-cocoa-700">ℹ️ {config.deliveryNotes}</p>}
+            {config.deliveryNotes && <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm text-white/80">ℹ️ {config.deliveryNotes}</p>}
           </div>
         )}
 
@@ -649,13 +649,13 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "contact" && (
           <div className="space-y-4">
             {receiving?.mode === "pickup" && (
-              <section className="rounded-2xl border border-leaf-500/30 bg-leaf-50 p-4 text-sm">
-                <p className="text-xs font-bold uppercase tracking-wide text-leaf-600">🏪 Retirada no local</p>
-                {config.pickupAddress && <p className="mt-1 font-bold text-cocoa-900">📍 {config.pickupAddress}</p>}
-                {config.pickupHours && <p className="text-cocoa-700">🕐 {config.pickupHours}</p>}
+              <section className="rounded-2xl border border-neon-cyan/25 bg-neon-cyan/10 p-4 text-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-neon-cyan">🏪 Retirada no local</p>
+                {config.pickupAddress && <p className="mt-1 font-bold text-white">📍 {config.pickupAddress}</p>}
+                {config.pickupHours && <p className="text-white/80">🕐 {config.pickupHours}</p>}
               </section>
             )}
-            <p className="text-sm text-cocoa-500">Sem cadastro — só o necessário para {receiving?.needsAddress ? "a entrega chegar até você" : "avisarmos quando estiver pronto"}.</p>
+            <p className="text-sm text-white/55">Sem cadastro — só o necessário para {receiving?.needsAddress ? "a entrega chegar até você" : "avisarmos quando estiver pronto"}.</p>
             <Field label="Seu nome">
               <input className="input-public" autoComplete="name" value={sel.customer.name} onChange={(e) => updateCustomer({ name: e.target.value })} placeholder="Como podemos te chamar?" />
             </Field>
@@ -703,20 +703,20 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
               );
             })}
             {order.payment?.asksChange && (
-              <div className="mt-4 rounded-3xl border border-cream-200 bg-white p-4">
+              <div className="mt-4 rounded-3xl border border-night-800 bg-night-900 p-4">
                 <p className="text-base font-extrabold">Precisa de troco?</p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <button type="button" onClick={() => update({ needsChange: true })} className={`btn-secondary ${sel.needsChange === true ? "!border-brand-500 !bg-brand-50" : ""}`}>Sim</button>
-                  <button type="button" onClick={() => update({ needsChange: false, changeFor: "" })} className={`btn-secondary ${sel.needsChange === false ? "!border-brand-500 !bg-brand-50" : ""}`}>Não</button>
+                  <button type="button" onClick={() => update({ needsChange: true })} className={`btn-dark ${sel.needsChange === true ? "!border-neon-pink !bg-neon-pink/15" : ""}`}>Sim</button>
+                  <button type="button" onClick={() => update({ needsChange: false, changeFor: "" })} className={`btn-dark ${sel.needsChange === false ? "!border-neon-pink !bg-neon-pink/15" : ""}`}>Não</button>
                 </div>
                 {sel.needsChange && (
                   <div className="mt-4">
-                    <label className="label !text-cocoa-700">Troco para quanto?</label>
+                    <label className="label !text-neon-gold">Troco para quanto?</label>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-extrabold text-cocoa-500">R$</span>
+                      <span className="text-lg font-extrabold text-white/55">R$</span>
                       <input className="input-public" inputMode="decimal" value={sel.changeFor} onChange={(e) => update({ changeFor: e.target.value })} placeholder="50,00" />
                     </div>
-                    <p className="mt-1.5 text-xs text-cocoa-500">
+                    <p className="mt-1.5 text-xs text-white/55">
                       Subtotal dos produtos: {formatBRL(order.subtotal)}.{receiving?.needsAddress ? " O valor da entrega será somado depois." : ""}
                     </p>
                   </div>
@@ -729,10 +729,10 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {/* ---------- Observações do pedido ---------- */}
         {view.phase === "notes" && (
           <div className="space-y-3">
-            <p className="text-sm text-cocoa-500">Opcional. Vale para o pedido todo. Ex.: molho separado, não colocar pimenta, tocar a campainha...</p>
+            <p className="text-sm text-white/55">Opcional. Vale para o pedido todo. Ex.: molho separado, não colocar pimenta, tocar a campainha...</p>
             <textarea className="input-public min-h-36" placeholder="Digite uma observação para este pedido..." value={sel.note} maxLength={400} onChange={(e) => update({ note: e.target.value })} />
             {doneLines.some((l) => l.note) && (
-              <p className="rounded-2xl bg-cream-100 px-4 py-3 text-sm text-cocoa-700">
+              <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm text-white/80">
                 ✅ As observações de cada item ({doneLines.filter((l) => l.note).length}) já estão salvas e vão junto no pedido.
               </p>
             )}
@@ -745,12 +745,12 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
             {order.groups.map((g, index) => {
               const l = g.line;
               return (
-                <div key={g.keys.join("-")} className="rounded-3xl border border-cream-200 bg-white p-5">
+                <div key={g.keys.join("-")} className="rounded-3xl border border-night-800 bg-night-900 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-base font-extrabold">
                       {order.groups.length > 1 ? `${index + 1}. ` : ""}{g.qty}x {emojiFor(l.meal.name, "🍽️")} {l.meal.name}
                     </p>
-                    <p className="shrink-0 font-extrabold text-brand-600">{formatBRL(l.price * g.qty)}</p>
+                    <p className="shrink-0 font-extrabold text-neon-gold">{formatBRL(l.price * g.qty)}</p>
                   </div>
                   <div className="mt-2 space-y-2">
                     {l.protein && <Detail label="Proteína" items={[`${emojiFor(l.protein.name)} ${l.protein.name}${l.protein.priceCents ? ` + ${formatBRL(l.protein.priceCents)}` : ""}`]} />}
@@ -762,14 +762,14 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                 </div>
               );
             })}
-            <div className="rounded-3xl border border-cream-200 bg-white p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-cocoa-500">Bebida</p>
+            <div className="rounded-3xl border border-night-800 bg-night-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-wide text-white/55">Bebida</p>
               {order.drinks.length ? (
                 <ul className="mt-1 space-y-1 font-bold">
                   {order.drinks.map((d) => (
                     <li key={d.item.id} className="flex justify-between gap-3">
                       <span>{emojiFor(d.item.name, "🥤")} {d.qty}x {d.item.name}</span>
-                      <span className="text-cocoa-700">{formatBRL(d.item.priceCents * d.qty)}</span>
+                      <span className="text-white/80">{formatBRL(d.item.priceCents * d.qty)}</span>
                     </li>
                   ))}
                 </ul>
@@ -782,54 +782,54 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                 </div>
               )}
               <div className="mt-3 flex gap-4">
-                <button type="button" onClick={() => setView({ phase: "cart" })} className="text-sm font-bold text-brand-600 underline">Editar pedido</button>
-                <button type="button" onClick={() => setView({ phase: "notes" })} className="text-sm font-bold text-brand-600 underline">Editar observação</button>
+                <button type="button" onClick={() => setView({ phase: "cart" })} className="text-sm font-bold text-neon-gold underline">Editar pedido</button>
+                <button type="button" onClick={() => setView({ phase: "notes" })} className="text-sm font-bold text-neon-gold underline">Editar observação</button>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-cream-200 bg-white p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-cocoa-500">Recebimento</p>
+            <div className="rounded-3xl border border-night-800 bg-night-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-wide text-white/55">Recebimento</p>
               <p className="mt-1 font-bold">{receiving?.emoji} {receiving?.label}</p>
               <p className="mt-2 font-bold">{sel.customer.name} · {sel.customer.phone}</p>
               {receiving?.needsAddress ? (
                 <>
-                  <p className="text-cocoa-700">
+                  <p className="text-white/80">
                     {sel.customer.street}, {sel.customer.number}
                     {sel.customer.complement ? ` — ${sel.customer.complement}` : ""}
                   </p>
-                  <p className="text-cocoa-700">{sel.customer.neighborhood}</p>
-                  {sel.customer.reference && <p className="text-sm text-cocoa-500">Ref.: {sel.customer.reference}</p>}
-                  {sel.customer.deliveryNote && <p className="text-sm text-cocoa-500">Obs.: {sel.customer.deliveryNote}</p>}
+                  <p className="text-white/80">{sel.customer.neighborhood}</p>
+                  {sel.customer.reference && <p className="text-sm text-white/55">Ref.: {sel.customer.reference}</p>}
+                  {sel.customer.deliveryNote && <p className="text-sm text-white/55">Obs.: {sel.customer.deliveryNote}</p>}
                 </>
               ) : (
                 <>
-                  {config.pickupAddress && <p className="text-cocoa-700">📍 {config.pickupAddress}</p>}
-                  {config.pickupHours && <p className="text-sm text-cocoa-500">🕐 {config.pickupHours}</p>}
+                  {config.pickupAddress && <p className="text-white/80">📍 {config.pickupAddress}</p>}
+                  {config.pickupHours && <p className="text-sm text-white/55">🕐 {config.pickupHours}</p>}
                 </>
               )}
               <div className="mt-2 flex gap-4">
-                <button type="button" onClick={() => setView({ phase: "receiving" })} className="text-sm font-bold text-brand-600 underline">Trocar recebimento</button>
-                <button type="button" onClick={() => setView({ phase: "contact" })} className="text-sm font-bold text-brand-600 underline">Editar dados</button>
+                <button type="button" onClick={() => setView({ phase: "receiving" })} className="text-sm font-bold text-neon-gold underline">Trocar recebimento</button>
+                <button type="button" onClick={() => setView({ phase: "contact" })} className="text-sm font-bold text-neon-gold underline">Editar dados</button>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-cream-200 bg-white p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-cocoa-500">Pagamento</p>
+            <div className="rounded-3xl border border-night-800 bg-night-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-wide text-white/55">Pagamento</p>
               <p className="mt-1 font-bold">{order.payment?.name}</p>
-              {order.payment?.asksChange && <p className="text-cocoa-700">{sel.needsChange ? `Troco para ${changeForLabel(sel.changeFor)}` : "Não precisa de troco"}</p>}
-              <button type="button" onClick={() => setView({ phase: "payment" })} className="mt-2 text-sm font-bold text-brand-600 underline">Editar pagamento</button>
+              {order.payment?.asksChange && <p className="text-white/80">{sel.needsChange ? `Troco para ${changeForLabel(sel.changeFor)}` : "Não precisa de troco"}</p>}
+              <button type="button" onClick={() => setView({ phase: "payment" })} className="mt-2 text-sm font-bold text-neon-gold underline">Editar pagamento</button>
             </div>
 
             <Totals subtotal={order.subtotal} receivingMode={sel.receivingMode} />
 
-            <p className="text-center text-sm text-cocoa-700">
+            <p className="text-center text-sm text-white/80">
               Ao tocar no botão, o WhatsApp abre com o pedido preenchido — você confere e envia.
               {receiving?.needsAddress ? " O estabelecimento confirma com você o valor da entrega e o total final." : ""}
             </p>
             {!isValidWhatsApp(config.whatsappNumber) && (
-              <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">O número de WhatsApp ainda não foi configurado no painel.</p>
+              <p className="rounded-2xl bg-red-500/15 px-4 py-3 text-sm font-bold text-red-300">O número de WhatsApp ainda não foi configurado no painel.</p>
             )}
-            <button type="button" onClick={copyMessage} className="w-full text-center text-sm font-bold text-cocoa-500 underline">
+            <button type="button" onClick={copyMessage} className="w-full text-center text-sm font-bold text-white/55 underline">
               {copied ? "Pedido copiado ✅" : "Copiar pedido em texto"}
             </button>
           </div>
@@ -837,15 +837,15 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
       </main>
 
       {/* Barra inferior fixa com subtotal e ação principal */}
-      <footer className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md border-t border-cream-200 bg-white/95 px-4 pt-3 backdrop-blur safe-bottom sm:sticky sm:rounded-b-[2rem]">
+      <footer className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md border-t border-night-800 bg-night-900/95 px-4 pt-3 backdrop-blur safe-bottom sm:sticky sm:rounded-b-[2rem]">
         {error && (
-          <p role="alert" className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>
+          <p role="alert" className="mb-2 rounded-xl bg-red-500/15 px-3 py-2 text-sm font-bold text-red-300">{error}</p>
         )}
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-wide text-cocoa-500">Subtotal</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-white/55">Subtotal</p>
             <p className="text-2xl font-extrabold leading-none">{formatBRL(view.phase === "builder" ? order.runningSubtotal : order.subtotal)}</p>
-            <p className="mt-0.5 text-[11px] leading-tight text-cocoa-500">{footerHint}</p>
+            <p className="mt-0.5 text-[11px] leading-tight text-white/55">{footerHint}</p>
           </div>
           {view.phase === "review" ? (
             <a
@@ -858,7 +858,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
               Enviar pedido pelo WhatsApp
             </a>
           ) : (
-            <button type="button" onClick={next} className="btn-primary flex-1">{primaryLabel}</button>
+            <button type="button" onClick={next} className="btn-neon flex-1">{primaryLabel}</button>
           )}
         </div>
       </footer>
@@ -876,25 +876,25 @@ function IncludedBlock({ meal, protein, chosen, extras }: { meal: PublicMeal; pr
   extras?.forEach((i) => parts.push(`${emojiFor(i.name, "➕")} ${i.name}`));
   if (parts.length === 0) return null;
   return (
-    <section className="rounded-2xl border border-leaf-500/30 bg-leaf-50 px-4 py-3">
-      <p className="text-xs font-bold uppercase tracking-wide text-leaf-600">Seu item até agora</p>
-      <p className="mt-1 text-sm font-bold text-cocoa-900">{parts.join(" · ")}</p>
+    <section className="rounded-2xl border border-neon-cyan/25 bg-neon-cyan/10 px-4 py-3">
+      <p className="text-xs font-bold uppercase tracking-wide text-neon-cyan">Seu item até agora</p>
+      <p className="mt-1 text-sm font-bold text-white">{parts.join(" · ")}</p>
     </section>
   );
 }
 
 function Detail({ label, items, highlight }: { label: string; items: string[]; highlight?: boolean }) {
   return (
-    <div className={highlight ? "rounded-xl bg-cream-100 px-3 py-2" : ""}>
-      <p className="text-xs font-bold uppercase tracking-wide text-cocoa-500">{label}</p>
-      <p className="text-sm font-semibold text-cocoa-900">{items.join(highlight ? " " : ", ")}</p>
+    <div className={highlight ? "rounded-xl bg-night-800 px-3 py-2" : ""}>
+      <p className="text-xs font-bold uppercase tracking-wide text-white/55">{label}</p>
+      <p className="text-sm font-semibold text-white">{items.join(highlight ? " " : ", ")}</p>
     </div>
   );
 }
 
 function Radio({ checked }: { checked: boolean }) {
   return (
-    <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${checked ? "border-brand-500 bg-brand-500" : "border-cream-300 bg-white"}`}>
+    <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${checked ? "border-neon-pink bg-neon-pink" : "border-night-700 bg-night-800"}`}>
       {checked && <span className="h-3 w-3 rounded-full bg-white" />}
     </span>
   );
@@ -902,7 +902,7 @@ function Radio({ checked }: { checked: boolean }) {
 
 function Check({ checked }: { checked: boolean }) {
   return (
-    <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 text-base font-extrabold text-white ${checked ? "border-brand-500 bg-brand-500" : "border-cream-300 bg-white"}`}>
+    <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 text-base font-extrabold text-white ${checked ? "border-neon-pink bg-neon-pink" : "border-night-700 bg-night-800"}`}>
       {checked ? "✓" : ""}
     </span>
   );
@@ -915,21 +915,21 @@ function OptionRow({ item, selected, dimmed, kind, onClick, priceMode }: { item:
       {item.imageUrl && <img src={item.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />}
       <span className="min-w-0 flex-1">
         <span className="block text-base font-extrabold leading-tight">{item.name}</span>
-        {item.description && <span className="mt-0.5 block text-sm text-cocoa-500">{item.description}</span>}
+        {item.description && <span className="mt-0.5 block text-sm text-white/55">{item.description}</span>}
       </span>
-      {item.priceCents > 0 && <span className="shrink-0 text-sm font-extrabold text-brand-600">{priceMode === "extra" ? `+ ${formatBRL(item.priceCents)}` : formatBRL(item.priceCents)}</span>}
+      {item.priceCents > 0 && <span className="shrink-0 text-sm font-extrabold text-neon-gold">{priceMode === "extra" ? `+ ${formatBRL(item.priceCents)}` : formatBRL(item.priceCents)}</span>}
     </button>
   );
 }
 
 function EmptyNotice({ text }: { text: string }) {
-  return <p className="rounded-2xl border-2 border-dashed border-cream-300 p-5 text-center text-cocoa-500">{text}</p>;
+  return <p className="rounded-2xl border-2 border-dashed border-night-700 p-5 text-center text-white/55">{text}</p>;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="label !text-cocoa-700">{label}</span>
+      <span className="label !text-neon-gold">{label}</span>
       {children}
     </label>
   );
@@ -939,20 +939,20 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function Totals({ subtotal, receivingMode }: { subtotal: number; receivingMode: ReceivingMode | null }) {
   const pickup = receivingMode === "pickup";
   return (
-    <section className="rounded-3xl bg-cocoa-900 p-5 text-white">
+    <section className="rounded-3xl border border-neon-gold/25 bg-night-900 p-5 text-white">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-base font-extrabold">Subtotal</span>
-        <span className="text-2xl font-extrabold">{formatBRL(subtotal)}</span>
+        <span className="text-2xl font-extrabold text-neon-gold">{formatBRL(subtotal)}</span>
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-3 text-sm">
         <span className="font-bold">Entrega</span>
         <span className="text-right">{pickup ? "retirada no local · sem taxa" : "consultar pelo WhatsApp"}</span>
       </div>
-      <div className="my-3 border-t border-dashed border-white/30" />
+      <div className="my-3 border-t border-dashed border-white/15" />
       {pickup ? (
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-base font-extrabold">Total</span>
-          <span className="text-xl font-extrabold">{formatBRL(subtotal)}</span>
+          <span className="text-xl font-extrabold text-neon-gold">{formatBRL(subtotal)}</span>
         </div>
       ) : (
         <p className="text-sm text-white/85">

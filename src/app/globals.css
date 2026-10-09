@@ -27,6 +27,20 @@
   --color-admin-600: #1f6f8b;
   --color-admin-700: #175872;
   --color-admin-800: #113f52;
+
+  /* Cardápio público — identidade neon do cardápio físico: fundo escuro, rosa/ciano/dourado */
+  --color-night-950: #0a0a10;
+  --color-night-900: #12121b;
+  --color-night-800: #1b1b28;
+  --color-night-700: #2a2a3a;
+  --color-neon-pink: #ff2e88;
+  --color-neon-cyan: #35d6f0;
+  --color-neon-gold: #ffd233;
+}
+
+/* Fonte de display (Anton), carregada no layout via next/font */
+@theme inline {
+  --font-display: var(--font-anton), "Arial Black", "Impact", sans-serif;
 }
 
 html {
@@ -48,6 +62,13 @@ body {
   }
   .btn-secondary {
     @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-cream-300 bg-white px-5 text-base font-bold text-cocoa-900 transition active:scale-[0.98] disabled:opacity-50;
+  }
+  /* Botões do cardápio público (tema neon): ação principal rosa e ação neutra escura */
+  .btn-neon {
+    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-neon-pink px-5 text-base font-extrabold text-white shadow-[0_8px_24px_rgba(255,46,136,0.35)] transition hover:bg-neon-pink/85 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
+  }
+  .btn-dark {
+    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-night-700 bg-night-800 px-5 text-base font-bold text-white transition hover:border-neon-pink/50 active:scale-[0.98] disabled:opacity-50;
   }
   .btn-admin {
     @apply inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-admin-600 px-5 text-base font-bold text-white shadow-sm transition hover:bg-admin-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
@@ -71,20 +92,34 @@ body {
     @apply w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-admin-600;
   }
   .input-public {
-    @apply w-full rounded-2xl border-2 border-cream-300 bg-white px-4 py-3.5 text-base text-cocoa-900 outline-none transition placeholder:text-cocoa-500/60 focus:border-brand-500;
+    @apply w-full rounded-2xl border-2 border-night-700 bg-night-900 px-4 py-3.5 text-base text-white outline-none transition placeholder:text-white/35 focus:border-neon-pink;
   }
   .label {
     @apply mb-1.5 block text-sm font-bold text-slate-700;
   }
   .option-card {
-    @apply flex w-full items-center gap-3 rounded-2xl border-2 border-cream-200 bg-white p-3 text-left transition active:scale-[0.99];
+    @apply flex w-full items-center gap-3 rounded-2xl border-2 border-night-800 bg-night-900 p-3 text-left text-white transition active:scale-[0.99];
   }
   .option-card-selected {
-    @apply border-brand-500 bg-brand-50 ring-2 ring-brand-500/30;
+    @apply border-neon-pink bg-neon-pink/10 ring-2 ring-neon-pink/30;
   }
 }
 
 /* Área segura em celulares com barra inferior */
 .safe-bottom {
   padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+
+/* Brilho neon (identidade do cardápio físico) */
+.neon-glow-pink {
+  text-shadow: 0 0 16px rgba(255, 46, 136, 0.55), 0 0 48px rgba(255, 46, 136, 0.25);
+}
+.neon-glow-cyan {
+  text-shadow: 0 0 16px rgba(53, 214, 240, 0.5), 0 0 48px rgba(53, 214, 240, 0.22);
+}
+/* Halos suaves atrás do logotipo no topo do cardápio */
+.hero-glow {
+  background:
+    radial-gradient(65% 55% at 50% 32%, rgba(255, 46, 136, 0.16), transparent 70%),
+    radial-gradient(55% 45% at 78% 82%, rgba(53, 214, 240, 0.1), transparent 70%);
 }

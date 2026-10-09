@@ -14,14 +14,19 @@ no computador — tudo acontece no navegador. Dúvida em qualquer ponto, me cham
    - **Region**: **South America (São Paulo)** — a mais rápida pro Brasil.
 3. Clique em **Create new project** e espere ~2 minutos (o banco está sendo criado).
 4. Copie o endereço de conexão: menu lateral **Project Settings** (⚙️) → **Database** →
-   aba **Connection pooling** → copie a string **URI**.
+   seção **Connection poolers** → use a string **URI do "Transaction pooler"** (porta **6543**).
    Ela é parecida com:
    `postgresql://postgres.abcdefghij:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres`
 5. Troque o `[YOUR-PASSWORD]` pela senha que você guardou no passo 2.
-   Guarde essa string completa — é a **DATABASE_URL** que a Vercel vai usar (passo 8).
+   **Importante:** se a senha tiver símbolos (`@ : / # ? %`), eles precisam de codificação
+   especial dentro da string (por exemplo `@` vira `%40`) — por isso o ideal é uma senha
+   **gerada pelo Supabase** ou escolhida por você usando **só letras e números**.
+   Guarde essa string completa — é a **DATABASE_URL** que a Vercel vai usar (seção 4).
 
-> É a string da aba **Connection pooling** mesmo (porta 6543) — ela é a recomendada
-> para sites na Vercel. O `.env.example` do projeto já usa esse formato.
+> É a string do **Transaction pooler** mesmo (porta 6543) — a recomendada para sites na
+> Vercel. Se a tela mostrar também um "Session pooler" (porta 5432) ou uma conexão
+> "Direct", não são essas. O aviso "Configuration is shared across all connection
+> poolers" é só informativo — nada a configurar ali.
 
 ## 2) Criar as tabelas
 

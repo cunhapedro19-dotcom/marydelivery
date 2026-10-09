@@ -13,7 +13,7 @@ export default async function RootPage() {
       <div>
         <p className="text-5xl">🍽️</p>
         <h1 className="mt-4 text-2xl font-extrabold">Nenhum estabelecimento cadastrado ainda.</h1>
-        <p className="mt-2 text-cocoa-700">Crie o primeiro com o script de configuração (veja o README).</p>
+        <p className="mt-2 text-white/70">Crie o primeiro com o script de configuração (veja o README).</p>
       </div>
     </main>
   );
