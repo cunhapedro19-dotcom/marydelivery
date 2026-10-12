@@ -188,7 +188,7 @@ export function ImageField({
   );
 }
 
-/* ---------- PWA: registro e aviso de instalação ---------- */
+/* ---------- PWA: registro e botão de instalação (simples, estilo Ovo Frito) ---------- */
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -197,8 +197,7 @@ type BeforeInstallPromptEvent = Event & {
 
 export function PwaSetup() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [visible, setVisible] = useState(false);
-  const [platform, setPlatform] = useState<"ios" | "android" | "other">("other");
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -206,62 +205,39 @@ export function PwaSetup() {
     }
     const nav = navigator as Navigator & { standalone?: boolean };
     const standalone = window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
-    if (standalone || localStorage.getItem("pwa-aviso-fechado") === "1") return;
-
-    const ua = navigator.userAgent;
-    const ios = /iphone|ipad|ipod/i.test(ua);
-    setPlatform(ios ? "ios" : /android/i.test(ua) ? "android" : "other");
+    if (standalone) return;
 
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setInstallEvent(e as BeforeInstallPromptEvent);
-      setVisible(true);
     };
-    const onInstalled = () => setVisible(false);
     window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    const timer = setTimeout(() => setVisible(true), 2500);
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-      clearTimeout(timer);
     };
   }, []);
 
-  if (!visible) return null;
-
   async function install() {
-    if (!installEvent) return;
-    await installEvent.prompt();
-    const choice = await installEvent.userChoice;
-    if (choice.outcome === "accepted") setVisible(false);
-  }
-  function dismiss() {
-    localStorage.setItem("pwa-aviso-fechado", "1");
-    setVisible(false);
+    if (installEvent) {
+      await installEvent.prompt();
+      const choice = await installEvent.userChoice;
+      if (choice.outcome === "accepted") return;
+    }
+    const ua = navigator.userAgent;
+    setNotice(
+      /iphone|ipad|ipod/i.test(ua)
+        ? "No iPhone: toque em Compartilhar (o quadrado com seta) e depois em Adicionar à Tela de Início."
+        : "Seu navegador não ofereceu a instalação. No Chrome atualizado, use o menu (⋮) > Instalar aplicativo.",
+    );
+    setTimeout(() => setNotice(null), 6000);
   }
 
   return (
-    <div className="mb-4 rounded-2xl border border-admin-100 bg-admin-50 p-4 text-sm text-admin-800">
-      <p className="font-bold">📲 Instale o app no seu celular para acessar o painel mais facilmente.</p>
-      {installEvent ? (
-        <button type="button" onClick={install} className="btn-admin mt-3 !min-h-12">
-          Instalar agora
-        </button>
-      ) : platform === "ios" ? (
-        <p className="mt-2">
-          No Safari, toque em <strong>Compartilhar</strong> (quadrado com seta) e depois em{" "}
-          <strong>Adicionar à Tela de Início</strong>.
-        </p>
-      ) : (
-        <p className="mt-2">
-          No menu do navegador (⋮), toque em <strong>Instalar aplicativo</strong> ou{" "}
-          <strong>Adicionar à tela inicial</strong>.
-        </p>
-      )}
-      <button type="button" onClick={dismiss} className="mt-2 text-xs font-bold text-admin-700 underline">
-        Não mostrar novamente
+    <div className="mb-4">
+      <button type="button" onClick={install} className="btn-admin-outline w-full">
+        📲 Instalar no celular
       </button>
+      {notice && <p className="mt-2 rounded-xl bg-white p-3 text-sm text-admin-800 shadow-sm">{notice}</p>}
     </div>
   );
 }

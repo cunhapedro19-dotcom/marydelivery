@@ -32,6 +32,7 @@ export default async function EstablishmentHomePage({ params }: Props) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-night-950 sm:my-6 sm:min-h-0 sm:overflow-hidden sm:rounded-[2rem] sm:shadow-xl">
+      <InstallApp slug={config.slug} />
       <section className="relative h-[52dvh] min-h-[320px] w-full overflow-hidden bg-night-950 sm:h-80">
         {config.heroUrl ? (
           <>
@@ -121,8 +122,6 @@ export default async function EstablishmentHomePage({ params }: Props) {
             {config.pausedMessage && <p className="mt-2 text-white/70">{config.pausedMessage}</p>}
           </div>
         )}
-
-        <InstallApp slug={config.slug} />
 
         <p className="text-center text-xs text-white/50">Sem cadastro. Você finaliza o pedido pelo WhatsApp.</p>
       </section>
