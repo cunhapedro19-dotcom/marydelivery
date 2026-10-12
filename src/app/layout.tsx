@@ -11,6 +11,9 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: { default: "Mary Delivery — Lanches", template: "%s" },
   description: "Delivery de lanches: monte seu pedido e envie pelo WhatsApp.",
+  // App do cardápio no iPhone (Android usa o manifest); o painel tem o dele no admin/layout.tsx
+  appleWebApp: { capable: true, title: "Mary Delivery", statusBarStyle: "black-translucent" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {

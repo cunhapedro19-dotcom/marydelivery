@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InstallApp } from "@/components/order/InstallApp";
 import { getPublicMenu } from "@/lib/data";
 import { formatBRL } from "@/lib/format";
 import { availableReceivingModes, canReceiveOrders } from "@/lib/order";
@@ -120,6 +121,8 @@ export default async function EstablishmentHomePage({ params }: Props) {
             {config.pausedMessage && <p className="mt-2 text-white/70">{config.pausedMessage}</p>}
           </div>
         )}
+
+        <InstallApp slug={config.slug} />
 
         <p className="text-center text-xs text-white/50">Sem cadastro. Você finaliza o pedido pelo WhatsApp.</p>
       </section>
