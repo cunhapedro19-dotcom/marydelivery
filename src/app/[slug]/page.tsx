@@ -56,7 +56,16 @@ export default async function EstablishmentHomePage({ params }: Props) {
         ) : (
           <div className="hero-glow absolute inset-0 grid place-items-center px-6 text-center">
             <div>
-              <p className="text-6xl">{config.emoji}</p>
+              {/* Se tem logo cadastrada, ela é a estrela do topo; o emoji só entra se não tiver logo */}
+              {config.logoUrl ? (
+                <img
+                  src={config.logoUrl}
+                  alt={config.name}
+                  className="mx-auto h-28 w-28 rounded-3xl border-2 border-neon-pink/60 object-cover shadow-lg"
+                />
+              ) : (
+                <p className="text-6xl">{config.emoji}</p>
+              )}
               <h1 className="mt-3 font-display text-6xl uppercase leading-[0.95]">
                 <span className="neon-glow-pink text-neon-pink">{firstWord}</span>
                 {restWords.length > 0 && (

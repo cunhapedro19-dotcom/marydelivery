@@ -46,7 +46,7 @@ export default async function NegocioPage() {
             <textarea className="input min-h-20" name="description" defaultValue={est.description} placeholder="Ex.: Comida caseira feita com carinho." />
           </label>
           <div className="mt-4">
-            <ImageField name="logoUrl" label="Logo (opcional)" initialUrl={est.logoUrl} heightClass="h-28" hint="Aparece pequena ao lado do nome." />
+            <ImageField name="logoUrl" label="Logo (opcional)" initialUrl={est.logoUrl} heightClass="h-28" hint="Aparece no topo do cardápio. A Imagem principal (abaixo) é opcional: com uma foto de fundo, a logo aparece pequena ao lado do nome." />
           </div>
           <div className="mt-4">
             <ImageField name="heroUrl" label="Imagem principal" initialUrl={est.heroUrl} hint="A foto grande que aparece na primeira tela do cardápio." />
