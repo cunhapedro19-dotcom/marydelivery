@@ -107,6 +107,9 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
       if (raw) {
         const saved = JSON.parse(raw) as Partial<Persisted>;
         const cleanSel = sanitize(menu, saved.sel);
+        // Descarta itens que ficaram pela metade (não concluídos): eles não podem
+        // aparecer contados/preçados como se estivessem no pedido
+        cleanSel.lines = cleanSel.lines.filter((l) => l.done);
         setSel(cleanSel);
         const v = saved.view;
         let restored: View | null = null;
@@ -178,13 +181,37 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
     });
     setError(null);
   }
+  /** Toque no nome do produto: abre a montagem dele (ou adiciona direto quando não tem etapas). */
+  function openMeal(meal: PublicMeal) {
+    if (view.phase !== "builder") return;
+    const subs = mealSubSteps(meal, menu);
+    if (subs.length === 0) {
+      quickAdd(meal); // produto sem etapas: adiciona direto
+      return;
+    }
+    chooseMeal(meal.id);
+    setView({ phase: "builder", lineKey: view.lineKey, sub: subs[0] });
+  }
+
   /** Adiciona o produto direto no pedido, sem passar pelas etapas de personalização. */
   function quickAdd(meal: PublicMeal) {
+    if (view.phase !== "builder") return;
     // Produto que exige escolha (ex.: proteína) abre a montagem normal
     if (meal.proteins.length > 0) {
-      if (view.phase !== "builder") return;
       chooseMeal(meal.id);
       setView({ phase: "builder", sub: "protein", lineKey: view.lineKey });
+      return;
+    }
+    // Este produto já está em montagem (linha não concluída)? Continua a montagem
+    // dele em vez de somar outro igual — evita o "um lanche saindo pelo preço de dois".
+    if (currentLine && !currentLine.done && currentLine.mealId === meal.id) {
+      const subs = mealSubSteps(meal, menu);
+      if (subs.length > 0) {
+        setView({ phase: "builder", lineKey: currentLine.key, sub: subs[0] });
+        return;
+      }
+      updateLine(currentLine.key, { done: true });
+      setView({ phase: "builder", sub: "meal", lineKey: newLineKey() });
       return;
     }
     setSel((prev) => ({
@@ -289,6 +316,8 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
       // O botão "Ver pedido" no rodapé é que leva ao carrinho.
       if (view.sub === "meal") return null;
       const idx = currentSubs.indexOf(view.sub);
+      // Editando um item que já está no pedido: voltar na primeira etapa retorna ao carrinho
+      if (idx === 1 && currentLine?.done) return { phase: "cart" };
       return { phase: "builder", lineKey: view.lineKey, sub: currentSubs[Math.max(idx - 1, 0)] };
     }
     // Do carrinho, voltar sempre leva pro menu (de onde se adiciona itens)
@@ -298,7 +327,13 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
   }
   const prev = previousView();
   function back() {
-    if (prev) setView(prev);
+    if (!prev) return;
+    // Voltar da PRIMEIRA etapa da montagem = desistir do item: tira a linha que
+    // ficou pela metade (era ela que fazia sair "um lanche pelo preço de dois")
+    if (view.phase === "builder" && prev.phase === "builder" && prev.sub === "meal" && currentLine && !currentLine.done) {
+      setSel((p) => ({ ...p, lines: p.lines.filter((l) => l.key !== currentLine.key) }));
+    }
+    setView(prev);
   }
 
   function validateCurrent(): string | null {
@@ -514,11 +549,9 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => chooseMeal(m.id)}
-                            aria-pressed={selected}
+                            onClick={() => openMeal(m)}
                             className="flex min-w-0 flex-1 items-center gap-3 text-left"
                           >
-                            <Radio checked={selected} />
                             <span className="min-w-0 flex-1">
                               <span className="block text-lg font-extrabold leading-tight">{m.name}</span>
                               {m.description && <span className="mt-0.5 block text-sm text-white/55">{m.description}</span>}
