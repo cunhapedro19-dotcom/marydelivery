@@ -9,7 +9,6 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    id: "/mary-delivery",
     name: "Mary Delivery",
     short_name: "Mary Delivery",
     description: "Cardápio da Mary Delivery: monte seu pedido e envie pelo WhatsApp.",

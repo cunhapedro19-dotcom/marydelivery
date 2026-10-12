@@ -503,7 +503,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                 {group.meals.map((m) => {
                   const selected = currentLine?.mealId === m.id;
                   // Quantos deste produto já estão no pedido (mostra a seleção múltipla)
-                  const addedCount = doneLines.filter((l) => l.mealId === m.id).length;
+                  const addedCount = doneLines.filter((l) => l.meal.id === m.id).length;
                   const hints: string[] = [];
                   if (m.proteins.length) hints.push("você escolhe a proteína");
                   if (m.choices.length && m.maxChoices > 0) hints.push(`até ${m.maxChoices} acompanhamento${m.maxChoices === 1 ? "" : "s"} à sua escolha`);
