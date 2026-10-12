@@ -257,6 +257,32 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
     if (!remaining.some((l) => l.done) && drinksCount === 0) startNewMeal();
   }
 
+  /** Tira uma unidade de um produto que entrou pelo + (remove a última linha dele no pedido). */
+  function removeQuick(mealId: number) {
+    setSel((prev) => {
+      let idx = -1;
+      // Preferir remover uma unidade simples (sem adicional, escolha ou observação)
+      for (let i = prev.lines.length - 1; i >= 0; i--) {
+        const l = prev.lines[i];
+        if (l.done && l.mealId === mealId && l.extraIds.length === 0 && l.sideIds.length === 0 && !l.note.trim()) {
+          idx = i;
+          break;
+        }
+      }
+      if (idx < 0) {
+        for (let i = prev.lines.length - 1; i >= 0; i--) {
+          if (prev.lines[i].done && prev.lines[i].mealId === mealId) {
+            idx = i;
+            break;
+          }
+        }
+      }
+      if (idx < 0) return prev;
+      return { ...prev, lines: prev.lines.filter((_, i) => i !== idx) };
+    });
+    setError(null);
+  }
+
   function previousView(): View | null {
     if (view.phase === "builder") {
       // O menu é a primeira tela: voltar sai do pedido (pra home).
@@ -499,16 +525,38 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                             </span>
                             <span className="shrink-0 text-base font-extrabold text-neon-gold">{formatBRL(m.priceCents)}</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => quickAdd(m)}
-                            aria-label={`Adicionar ${m.name} ao pedido`}
-                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-neon-pink text-xl font-extrabold text-white shadow-[0_0_14px_rgba(255,46,136,0.4)] active:scale-90"
-                          >
-                            +
-                          </button>
+                          {addedCount === 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => quickAdd(m)}
+                              aria-label={`Adicionar ${m.name} ao pedido`}
+                              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-neon-pink text-xl font-extrabold text-white shadow-[0_0_14px_rgba(255,46,136,0.4)] active:scale-90"
+                            >
+                              +
+                            </button>
+                          ) : (
+                            /* Já tem no pedido: vira contador, igual ao das bebidas */
+                            <span className="flex shrink-0 items-center gap-1">
+                              <button
+                                type="button"
+                                aria-label={`Remover uma unidade de ${m.name}`}
+                                onClick={() => removeQuick(m.id)}
+                                className="grid h-9 w-9 place-items-center rounded-full border-2 border-night-700 bg-night-800 text-lg font-extrabold text-white active:scale-90"
+                              >
+                                −
+                              </button>
+                              <span className="w-7 text-center text-base font-extrabold text-neon-cyan">{addedCount}</span>
+                              <button
+                                type="button"
+                                aria-label={`Adicionar mais um ${m.name}`}
+                                onClick={() => quickAdd(m)}
+                                className="grid h-9 w-9 place-items-center rounded-full bg-neon-pink text-lg font-extrabold text-white active:scale-90"
+                              >
+                                +
+                              </button>
+                            </span>
+                          )}
                         </div>
-                        {addedCount > 0 && <p className="mt-2 text-sm font-bold text-neon-cyan">✓ {addedCount} no pedido</p>}
                         {m.included.length > 0 && (
                           <p className="mt-3 text-sm text-white/80">
                             <span className="font-bold">Já acompanha:</span> {m.included.map((i) => `${emojiFor(i.name)} ${i.name}`).join(" · ")}
