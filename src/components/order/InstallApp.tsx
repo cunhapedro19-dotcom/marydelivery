@@ -8,7 +8,7 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 // Quando a pessoa fecha a faixa, ela fica escondida por 3 dias (pra não enjoadar)
-const FECHAR_KEY = "mary-instalar-fechado";
+const FECHAR_KEY = "barao-instalar-fechado";
 
 /**
  * Faixa de instalação do app do cardápio — SIMPLES pra qualquer pessoa:
@@ -92,15 +92,15 @@ export function InstallApp({ slug }: { slug: string }) {
 
   return (
     <>
-      {/* Faixa rosa fixa no topo, acima de tudo */}
-      <div className="sticky top-0 z-30 flex items-center gap-3 bg-neon-pink px-4 py-2.5 text-white shadow-lg">
+      {/* Faixa dourada fixa no topo, acima de tudo */}
+      <div className="sticky top-0 z-30 flex items-center gap-3 bg-gold-400 px-4 py-2.5 text-brown-900 shadow-lg">
         <span className="min-w-0 flex-1 text-sm font-extrabold leading-tight">
-          📲 Instale o app da Mary!
+          📲 Instale o app das Delícias do Barão!
         </span>
         <button
           type="button"
           onClick={instalar}
-          className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-extrabold text-neon-pink active:scale-95"
+          className="shrink-0 rounded-full bg-wine-700 px-4 py-2 text-sm font-extrabold text-cream-100 active:scale-95"
         >
           Instalar
         </button>
@@ -108,7 +108,7 @@ export function InstallApp({ slug }: { slug: string }) {
           type="button"
           onClick={fechar}
           aria-label="Fechar aviso de instalação"
-          className="shrink-0 px-1 text-lg text-white/80"
+          className="shrink-0 px-1 text-lg text-brown-900/80"
         >
           ✕
         </button>
@@ -117,22 +117,22 @@ export function InstallApp({ slug }: { slug: string }) {
       {/* Passo a passo simples, pra quem nunca instalou nada */}
       {instructions && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-6"
+          className="fixed inset-0 z-50 grid place-items-center bg-brown-900/70 px-6"
           onClick={() => setInstructions(false)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl bg-night-900 p-6 text-white shadow-2xl"
+            className="w-full max-w-sm rounded-3xl bg-brown-800 p-6 text-cream-100 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-xl font-extrabold">📲 Instalar em 3 toques</p>
+            <p className="text-xl font-extrabold text-gold-400">📲 Instalar em 3 toques</p>
             {isIos ? (
-              <ol className="mt-3 space-y-2 text-[15px] text-white/85">
+              <ol className="mt-3 space-y-2 text-[15px] text-cream-100/85">
                 <li>1. Toque no ícone Compartilhar (o quadrado com seta)</li>
                 <li>2. Toque em "Adicionar à Tela de Início"</li>
                 <li>3. Toque em "Adicionar". Pronto!</li>
               </ol>
             ) : (
-              <ol className="mt-3 space-y-2 text-[15px] text-white/85">
+              <ol className="mt-3 space-y-2 text-[15px] text-cream-100/85">
                 <li>1. Toque no menu ⋮ (no canto superior direito)</li>
                 <li>2. Toque em "Instalar aplicativo" ou "Adicionar à tela inicial"</li>
                 <li>3. Toque em "Instalar". Pronto!</li>
@@ -141,7 +141,7 @@ export function InstallApp({ slug }: { slug: string }) {
             <button
               type="button"
               onClick={() => setInstructions(false)}
-              className="btn-neon mt-5 w-full"
+              className="btn-gold mt-5 w-full"
             >
               Entendi
             </button>

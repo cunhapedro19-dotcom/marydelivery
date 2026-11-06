@@ -1,39 +1,75 @@
-import { redirect } from "next/navigation";
-import { loginAction } from "@/app/admin/actions";
-import { StatusForm } from "@/components/admin/ui";
-import { ensureSeeded } from "@/db/seed";
-import { getAdminSession } from "@/lib/auth";
-import { getDefaultEstablishment } from "@/lib/data";
+"use client";
 
-export const metadata = { title: "Entrar" };
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AdminLayout } from "@/components/admin/ui";
+import { Label, Input, SubmitButton } from "@/components/admin/ui";
 
-export default async function LoginPage() {
-  // Garante que o acesso do painel existe (o seed cria tudo na primeira visita)
-  await ensureSeeded();
-  const session = await getAdminSession();
-  if (session) redirect("/admin");
-  const est = await getDefaultEstablishment();
+export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/admin";
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro no login");
+      router.push(redirectTo);
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <main className="flex min-h-dvh flex-col justify-center py-10">
-      <div className="mb-8 text-center">
-        <img src="/icons/icon-192.png" alt="" className="mx-auto h-20 w-20 rounded-3xl shadow-md" />
-        <h1 className="mt-4 text-2xl font-extrabold">{est ? `${est.emoji} ${est.name}` : "🍔 Mary Delivery"}</h1>
-        <p className="mt-1 text-slate-600">Entre para administrar o seu cardápio.</p>
-      </div>
+    <AdminLayout title="Entrar no painel">
+      <div className="mx-auto max-w-md">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="font-display text-2xl font-bold text-center text-slate-900">Entrar no painel</h1>
+          <p className="mt-2 text-center text-sm text-slate-500">Delícias do Barão — Painel administrativo</p>
 
-      <div className="admin-card">
-        <StatusForm action={loginAction} submitLabel="Entrar">
-          <label className="block">
-            <span className="label">Usuário</span>
-            <input className="input" type="text" name="identifier" autoComplete="username" required />
-          </label>
-          <label className="mt-4 block">
-            <span className="label">Senha</span>
-            <input className="input" type="password" name="password" autoComplete="current-password" required />
-          </label>
-        </StatusForm>
+          {error && (
+            <div className="mt-4 rounded-xl bg-red-50 border border-red-200 p-3 text-sm font-medium text-red-700" role="alert">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div>
+              <Label htmlFor="username">Usuário</Label>
+              <Input id="username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="admin" required disabled={loading} />
+            </div>
+            <div>
+              <Label htmlFor="password">Senha</Label>
+              <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required disabled={loading} />
+            </div>
+            <SubmitButton type="submit" className="w-full" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </SubmitButton>
+          </form>
+
+          <p className="mt-4 text-center text-xs text-slate-500">
+            Usuário padrão: <code className="font-mono">admin</code> • Senha padrão: <code className="font-mono">barao-2026</code>
+          </p>
+          <p className="mt-1 text-center text-xs text-slate-500">
+            Troque a senha em Configurações → Meu acesso após o primeiro login.
+          </p>
+        </div>
       </div>
-    </main>
+    </AdminLayout>
   );
 }

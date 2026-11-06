@@ -1,151 +1,148 @@
-import type { Establishment, Meal, MenuItem, PaymentMethod, ReceivingMode } from "@/db/schema";
-import { formatBRL, formatPhone, isValidWhatsApp, normalizeWhatsApp } from "@/lib/format";
+import type { MenuItem, PublicMeal } from "@/db/schema";
+import type { MenuData, MealLine, OrderSelection } from "./order-types";
 
-/**
- * O cardápio só recebe pedidos quando está aberto E tem um WhatsApp válido cadastrado —
- * sem número não há para onde enviar o pedido.
- */
-export function canReceiveOrders(config: Pick<Establishment, "acceptingOrders" | "whatsappNumber">): boolean {
-  return config.acceptingOrders && isValidWhatsApp(config.whatsappNumber);
-}
+/* ---------- Tipos internais ---------- */
 
-/** Mensagem usada pelo botão "Testar WhatsApp" do painel. */
-export const WHATSAPP_TEST_MESSAGE = "Olá! Esta é uma mensagem de teste do meu cardápio digital.";
+export type MealSub = "protein" | "sides" | "extras" | "note";
 
-/** Produto com sua composição (somente itens disponíveis, no cardápio público). */
-export type PublicMeal = Meal & {
-  included: MenuItem[];
-  proteins: MenuItem[];
-  choices: MenuItem[];
-};
-
-export type MenuData = {
-  config: Establishment;
-  meals: PublicMeal[];
-  extras: MenuItem[];
-  drinks: MenuItem[];
-  payments: PaymentMethod[];
-};
-
-export type Customer = {
-  name: string;
-  phone: string;
-  street: string;
-  number: string;
-  complement: string;
-  neighborhood: string;
-  reference: string;
-  deliveryNote: string;
-};
-
-/** Um produto dentro do pedido (o cliente pode pedir vários, cada um com suas escolhas). */
-export type MealLine = {
+export type ResolvedLine = {
   key: string;
-  mealId: number;
-  proteinId: number | null;
-  sideIds: number[];
-  extraIds: number[];
+  meal: PublicMeal;
+  protein: MenuItem | null;
+  included: MenuItem[];
+  chosen: MenuItem[];
+  extras: MenuItem[];
   note: string;
-  /** false enquanto o cliente ainda está montando */
+  price: number;
   done: boolean;
 };
 
-export type OrderSelection = {
-  lines: MealLine[];
-  /** id da bebida -> quantidade */
-  drinkQty: Record<string, number>;
-  /** observação geral do pedido */
+export type ResolvedOrder = {
+  lines: ResolvedLine[];
+  drinks: { item: MenuItem; qty: number }[];
+  subtotal: number;
+  runningSubtotal: number;
+  receiving: { mode: string; label: string; emoji: string; description: string; needsAddress: boolean } | null;
+  payment: { id: number; name: string; asksChange: boolean } | null;
   note: string;
-  receivingMode: ReceivingMode | null;
-  customer: Customer;
-  paymentMethodId: number | null;
-  needsChange: boolean | null;
-  changeFor: string;
+  groups: { keys: string[]; line: ResolvedLine; qty: number }[];
 };
 
-export const emptySelection: OrderSelection = {
-  lines: [],
-  drinkQty: {},
-  note: "",
-  receivingMode: null,
-  customer: {
-    name: "",
-    phone: "",
-    street: "",
-    number: "",
-    complement: "",
-    neighborhood: "",
-    reference: "",
-    deliveryNote: "",
-  },
-  paymentMethodId: null,
-  needsChange: null,
-  changeFor: "",
-};
+/* ---------- Helpers de seleção ---------- */
+
+export function emptySelection(): OrderSelection {
+  return {
+    lines: [],
+    drinkQty: {},
+    note: "",
+    receivingMode: null,
+    customer: { name: "", phone: "", street: "", number: "", complement: "", neighborhood: "", reference: "", deliveryNote: "" },
+    paymentMethodId: null,
+    needsChange: null,
+    changeFor: "",
+  };
+}
 
 export function newLineKey(): string {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/* ---------- Resolução de linhas ---------- */
+
+export function resolveLine(menu: MenuData, line: MealLine): ResolvedLine {
+  const meal = menu.meals.find((m) => m.id === line.mealId)!;
+  const protein = line.proteinId ? menu.proteins.find((p) => p.id === line.proteinId) ?? null : null;
+  const included = meal.included;
+  const chosen = line.sideIds.map((id) => menu.choices.find((c) => c.id === id)).filter(Boolean) as MenuItem[];
+  const extras = line.extraIds.map((id) => menu.extras.find((e) => e.id === id)).filter(Boolean) as MenuItem[];
+  const price = meal.priceCents + (protein?.priceCents ?? 0) + chosen.reduce((s, c) => s + c.priceCents, 0) + extras.reduce((s, e) => s + e.priceCents, 0);
+  return { key: line.key, meal, protein, included, chosen, extras, note: line.note, price, done: line.done };
+}
+
+export function resolveOrder(menu: MenuData, sel: OrderSelection): ResolvedOrder {
+  const lines = sel.lines.filter((l) => l.done).map((l) => resolveLine(menu, l));
+  const drinks = Object.entries(sel.drinkQty)
+    .map(([id, qty]) => ({ item: menu.drinks.find((d) => d.id === Number(id))!, qty }))
+    .filter((d) => d.item);
+  const subtotal = lines.reduce((s, l) => s + l.price, 0) + drinks.reduce((s, d) => s + d.item.priceCents * d.qty, 0);
+  const runningSubtotal = sel.lines.reduce((s, l) => s + (l.done ? resolveLine(menu, l).price : 0), 0) + drinks.reduce((s, d) => s + d.item.priceCents * d.qty, 0);
+
+  const receivingMode = sel.receivingMode;
+  const receiving = receivingMode
+    ? availableReceivingModes(menu.config).find((m) => m.mode === receivingMode) ?? null
+    : null;
+
+  const payment = sel.paymentMethodId ? menu.payments.find((p) => p.id === sel.paymentMethodId) ?? null : null;
+
+  // Agrupa linhas idênticas para o resumo
+  const groupMap = new Map<string, { keys: string[]; line: ResolvedLine }>();
+  for (const l of lines) {
+    const sig = `${l.meal.id}-${l.protein?.id ?? "none"}-${l.chosen.map((c) => c.id).sort().join(",")}-${l.extras.map((e) => e.id).sort().join(",")}-${l.note}`;
+    const existing = groupMap.get(sig);
+    if (existing) existing.keys.push(l.key);
+    else groupMap.set(sig, { keys: [l.key], line: l });
+  }
+  const groups = Array.from(groupMap.values()).map((g) => ({ keys: g.keys, line: g.line, qty: g.keys.length }));
+
+  return {
+    lines,
+    drinks,
+    subtotal,
+    runningSubtotal,
+    receiving,
+    payment,
+    note: sel.note,
+    groups,
+  };
 }
 
 /* ---------- Modalidades de recebimento ---------- */
 
-export type ReceivingInfo = {
-  mode: ReceivingMode;
-  emoji: string;
+export type ReceivingOption = {
+  mode: "pickup" | "own" | "app";
   label: string;
+  emoji: string;
   description: string;
   needsAddress: boolean;
-  /** Linha da seção "🚚 ENTREGA" na mensagem (null = não mostra a seção) */
-  feeLine: string | null;
 };
 
-export function receivingInfo(config: Establishment, mode: ReceivingMode): ReceivingInfo {
-  switch (mode) {
-    case "pickup": {
-      const parts = [config.pickupAddress && `📍 ${config.pickupAddress}`, config.pickupHours && `🕐 ${config.pickupHours}`].filter(Boolean);
-      return {
-        mode,
-        emoji: "🏪",
-        label: "Retirada no local",
-        description: parts.length ? parts.join(" · ") : "Você busca o pedido no estabelecimento.",
-        needsAddress: false,
-        feeLine: null,
-      };
-    }
-    case "own":
-      return {
-        mode,
-        emoji: "🛵",
-        label: "Entrega própria",
-        description: "Entregamos com nossa própria equipe. A taxa é combinada pelo WhatsApp.",
-        needsAddress: true,
-        feeLine: "Taxa a confirmar pelo WhatsApp.",
-      };
-    case "app": {
-      const service = config.appDeliveryService.trim() || "aplicativo";
-      return {
-        mode,
-        emoji: "🚗",
-        label: `Entrega por ${service}`,
-        description: `A entrega é feita por ${service}. O valor é combinado pelo WhatsApp.`,
-        needsAddress: true,
-        feeLine: "Valor a confirmar pelo WhatsApp.",
-      };
-    }
+export function availableReceivingModes(config: { pickupEnabled: boolean; pickupAddress: string; pickupHours: string; ownDeliveryEnabled: boolean; appDeliveryEnabled: boolean; appDeliveryService: string }): ReceivingOption[] {
+  const opts: ReceivingOption[] = [];
+  if (config.pickupEnabled) {
+    opts.push({
+      mode: "pickup",
+      label: "Retirar no local",
+      emoji: "🏪",
+      description: config.pickupAddress || "Endereço a combinar",
+      needsAddress: false,
+    });
   }
+  if (config.ownDeliveryEnabled) {
+    opts.push({
+      mode: "own",
+      label: "Entrega própria",
+      emoji: "🛵",
+      description: "Valor combinado pelo WhatsApp",
+      needsAddress: true,
+    });
+  }
+  if (config.appDeliveryEnabled && config.appDeliveryService) {
+    opts.push({
+      mode: "app",
+      label: `Entrega pelo ${config.appDeliveryService}`,
+      emoji: "📱",
+      description: "Pedidos direto pelo app",
+      needsAddress: true,
+    });
+  }
+  return opts;
 }
 
-export function availableReceivingModes(config: Establishment): ReceivingInfo[] {
-  const modes: ReceivingMode[] = [];
-  if (config.pickupEnabled) modes.push("pickup");
-  if (config.ownDeliveryEnabled) modes.push("own");
-  if (config.appDeliveryEnabled) modes.push("app");
-  return modes.map((m) => receivingInfo(config, m));
+export function canReceiveOrders(config: { acceptingOrders: boolean; whatsappNumber: string }): boolean {
+  return config.acceptingOrders && config.whatsappNumber.trim().length > 0;
 }
 
-/* ---------- Passos de personalização de um produto ---------- */
-
-export type MealSub = "protein" | "sides" | "extras" | "note";
+/* ---------- Etapas de montagem de um produto ---------- */
 
 export function mealSubSteps(meal: PublicMeal, menu: MenuData): MealSub[] {
   const steps: MealSub[] = [];
@@ -156,196 +153,96 @@ export function mealSubSteps(meal: PublicMeal, menu: MenuData): MealSub[] {
   return steps;
 }
 
-/* ---------- Resolução do pedido ---------- */
-
-export type ResolvedLine = {
-  key: string;
-  meal: PublicMeal;
-  protein: MenuItem | null;
-  included: MenuItem[];
-  chosen: MenuItem[];
-  extras: MenuItem[];
-  note: string;
-  /** preço do produto + acréscimos + adicionais */
-  price: number;
-  done: boolean;
-};
-
-export function resolveLine(menu: MenuData, line: MealLine): ResolvedLine | null {
-  const meal = menu.meals.find((m) => m.id === line.mealId);
-  if (!meal) return null;
-  const protein = meal.proteins.find((p) => p.id === line.proteinId) ?? null;
-  const chosen = line.sideIds
-    .map((id) => meal.choices.find((c) => c.id === id))
-    .filter((c): c is MenuItem => !!c);
-  const extras = meal.allowExtras
-    ? line.extraIds.map((id) => menu.extras.find((e) => e.id === id)).filter((e): e is MenuItem => !!e)
-    : [];
-  const price =
-    meal.priceCents +
-    (protein?.priceCents ?? 0) +
-    chosen.reduce((sum, c) => sum + c.priceCents, 0) +
-    extras.reduce((sum, e) => sum + e.priceCents, 0);
-  return {
-    key: line.key,
-    meal,
-    protein,
-    included: meal.included,
-    chosen,
-    extras,
-    note: line.note.trim(),
-    price,
-    done: line.done,
-  };
-}
-
-/** Linhas idênticas (mesmo produto, escolhas e observação) agrupadas como "2x". */
-export type GroupedLine = { line: ResolvedLine; qty: number; keys: string[] };
-
-export function groupLines(lines: ResolvedLine[]): GroupedLine[] {
-  const groups: GroupedLine[] = [];
-  const signature = (l: ResolvedLine) =>
-    [
-      l.meal.id,
-      l.protein?.id ?? 0,
-      [...l.chosen.map((c) => c.id)].sort((a, b) => a - b).join("."),
-      [...l.extras.map((e) => e.id)].sort((a, b) => a - b).join("."),
-      l.note.toLowerCase(),
-    ].join("|");
-  const index = new Map<string, GroupedLine>();
-  for (const l of lines) {
-    const sig = signature(l);
-    const existing = index.get(sig);
-    if (existing) {
-      existing.qty += 1;
-      existing.keys.push(l.key);
-    } else {
-      const g = { line: l, qty: 1, keys: [l.key] };
-      index.set(sig, g);
-      groups.push(g);
-    }
-  }
-  return groups;
-}
-
-export function resolveOrder(menu: MenuData, sel: OrderSelection) {
-  const allLines = sel.lines
-    .map((l) => resolveLine(menu, l))
-    .filter((l): l is ResolvedLine => !!l);
-  const lines = allLines.filter((l) => l.done);
-  const drinks = menu.drinks
-    .map((item) => ({ item, qty: sel.drinkQty[String(item.id)] ?? 0 }))
-    .filter((d) => d.qty > 0);
-  const payment = menu.payments.find((p) => p.id === sel.paymentMethodId) ?? null;
-  const drinksTotal = drinks.reduce((sum, d) => sum + d.item.priceCents * d.qty, 0);
-  const subtotal = lines.reduce((sum, l) => sum + l.price, 0) + drinksTotal;
-  // Inclui o produto que ainda está sendo montado (para a barra inferior)
-  const runningSubtotal = allLines.reduce((sum, l) => sum + l.price, 0) + drinksTotal;
-  const receiving = sel.receivingMode ? receivingInfo(menu.config, sel.receivingMode) : null;
-  return {
-    lines,
-    groups: groupLines(lines),
-    drinks,
-    payment,
-    receiving,
-    subtotal,
-    runningSubtotal,
-    note: sel.note.trim(),
-  };
-}
-
-export type ResolvedOrder = ReturnType<typeof resolveOrder>;
-
-/** Texto do troco como aparece para o estabelecimento (ex.: "R$ 50,00"). */
-export function changeForLabel(raw: string): string {
-  const value = raw.trim();
-  return value.startsWith("R$") ? value : `R$ ${value}`;
-}
-
-function plusPrice(item: MenuItem): string {
-  return item.priceCents > 0 ? ` (+ ${formatBRL(item.priceCents)})` : "";
-}
-
-/** Resumo curto de uma linha (usado no registro de pedidos do painel). */
-export function orderSummary(o: ResolvedOrder): string {
-  const parts = o.groups.map((g) => `${g.qty}x ${g.line.meal.name}`);
-  o.drinks.forEach((d) => parts.push(`${d.qty}x ${d.item.name}`));
-  return parts.join(", ");
-}
-
-/* ---------- Mensagem do WhatsApp ---------- */
+/* ---------- Construção da mensagem WhatsApp ---------- */
 
 export function buildWhatsAppMessage(menu: MenuData, sel: OrderSelection): string {
-  const { config } = menu;
-  const o = resolveOrder(menu, sel);
-  const c = sel.customer;
+  const order = resolveOrder(menu, sel);
+  const config = menu.config;
   const lines: string[] = [];
 
-  if (config.whatsappGreeting.trim()) lines.push(config.whatsappGreeting.trim(), "");
-  lines.push(`${config.emoji} NOVO PEDIDO`, "");
+  lines.push(`*${config.name}*`);
+  lines.push(config.whatsappGreeting || "Olá! Gostaria de fazer um pedido.");
+  lines.push("");
 
-  o.groups.forEach((g) => {
+  // Itens agrupados
+  for (const g of order.groups) {
     const l = g.line;
-    lines.push(`${g.qty}x ${l.meal.name} — ${formatBRL(l.meal.priceCents * g.qty)}`);
-    if (l.protein) lines.push("Proteína:", `- ${l.protein.name}${plusPrice(l.protein)}`);
-    if (l.included.length) {
-      lines.push("Inclusos:");
-      l.included.forEach((i) => lines.push(`- ${i.name}`));
-    }
-    if (l.chosen.length) {
-      lines.push("Escolhidos:");
-      l.chosen.forEach((i) => lines.push(`- ${i.name}${plusPrice(i)}`));
-    }
-    if (l.extras.length) {
-      lines.push(l.extras.length === 1 ? "Adicional:" : "Adicionais:");
-      l.extras.forEach((e) => lines.push(`- ${e.name} — ${formatBRL(e.priceCents)}${g.qty > 1 ? " (cada)" : ""}`));
-    }
-    if (l.note) lines.push("📝 Observação:", l.note);
-    lines.push("");
-  });
-
-  if (o.drinks.length) {
-    lines.push(o.drinks.length === 1 && o.drinks[0].qty === 1 ? "Bebida:" : "Bebidas:");
-    o.drinks.forEach((d) => lines.push(`- ${d.qty}x ${d.item.name} — ${formatBRL(d.item.priceCents * d.qty)}`));
+    const qtyPrefix = g.qty > 1 ? `${g.qty}x ` : "";
+    lines.push(`${qtyPrefix}${l.meal.name}`);
+    if (l.protein) lines.push(`  • Proteína: ${l.protein.name}${l.protein.priceCents ? ` + ${formatBRL(l.protein.priceCents)}` : ""}`);
+    if (l.included.length) lines.push(`  • Inclusos: ${l.included.map((i) => i.name).join(", ")}`);
+    if (l.chosen.length) lines.push(`  • Escolhidos: ${l.chosen.map((i) => i.name).join(", ")}`);
+    if (l.extras.length) lines.push(`  • Adicionais: ${l.extras.map((e) => `${e.name} + ${formatBRL(e.priceCents)}`).join(", ")}`);
+    if (l.note) lines.push(`  • Obs: ${l.note}`);
     lines.push("");
   }
 
-  if (o.note) lines.push("📝 Observação do pedido:", o.note, "");
-
-  const r = o.receiving;
-  if (r) {
-    lines.push(`${r.emoji} RECEBIMENTO`, r.label);
-    if (r.mode === "pickup") {
-      lines.push(`Nome: ${c.name.trim()}`);
-      if (c.phone.trim()) lines.push(`Telefone: ${formatPhone(c.phone)}`);
+  // Bebidas
+  if (order.drinks.length) {
+    lines.push("🥤 *Bebidas*");
+    for (const d of order.drinks) {
+      lines.push(`${d.qty}x ${d.item.name} ${formatBRL(d.item.priceCents * d.qty)}`);
     }
     lines.push("");
-    if (r.needsAddress) {
-      lines.push("📍 ENDEREÇO");
-      lines.push(`${c.name.trim()}${c.phone.trim() ? ` · ${formatPhone(c.phone)}` : ""}`);
-      lines.push(`${c.street.trim()}, ${c.number.trim()}`);
-      if (c.neighborhood.trim()) lines.push(c.neighborhood.trim());
-      if (c.complement.trim()) lines.push(`Complemento: ${c.complement.trim()}`);
-      if (c.reference.trim()) lines.push(`Referência: ${c.reference.trim()}`);
-      if (c.deliveryNote.trim()) lines.push(`Obs. da entrega: ${c.deliveryNote.trim()}`);
-      lines.push("");
-    }
   }
 
-  lines.push("💳 PAGAMENTO", o.payment?.name ?? "-");
-  if (o.payment?.asksChange) {
-    lines.push(sel.needsChange && sel.changeFor.trim() ? `Troco para ${changeForLabel(sel.changeFor)}` : "Não precisa de troco");
+  if (order.note) {
+    lines.push(`📝 *Obs do pedido:* ${order.note}`);
+    lines.push("");
+  }
+
+  lines.push(`*Subtotal: ${formatBRL(order.subtotal)}*`);
+  if (order.receiving?.needsAddress) {
+    lines.push("🛵 Taxa de entrega: a combinar pelo WhatsApp");
+  } else if (order.receiving?.mode === "pickup") {
+    lines.push("🏪 Retirada no local · sem taxa de entrega");
   }
   lines.push("");
 
-  lines.push("💰 SUBTOTAL", formatBRL(o.subtotal));
-  if (r?.feeLine) lines.push("", "🚚 ENTREGA", r.feeLine);
+  if (order.receiving?.needsAddress) {
+    lines.push("📍 *Endereço de entrega:*");
+    const c = sel.customer;
+    lines.push(`${c.street}, ${c.number}${c.complement ? ` — ${c.complement}` : ""}`);
+    lines.push(`${c.neighborhood}`);
+    if (c.reference) lines.push(`Ref: ${c.reference}`);
+    if (c.deliveryNote) lines.push(`Obs: ${c.deliveryNote}`);
+    lines.push("");
+  } else if (order.receiving?.mode === "pickup") {
+    lines.push("🏪 *Retirada no local*");
+    if (config.pickupAddress) lines.push(config.pickupAddress);
+    if (config.pickupHours) lines.push(config.pickupHours);
+    lines.push("");
+  }
+
+  lines.push(`👤 ${sel.customer.name}`);
+  lines.push(`📞 ${sel.customer.phone}`);
+  if (order.payment) {
+    lines.push(`💳 ${order.payment.name}${order.payment.asksChange && sel.needsChange ? ` (troco para ${formatBRL(parsePriceToCents(sel.changeFor) || 0)})` : ""}`);
+  }
 
   return lines.join("\n");
 }
 
-/** Link que abre a conversa com o número do estabelecimento já com a mensagem preenchida (o cliente toca em enviar). */
+function formatBRL(cents: number): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+}
+
+function parsePriceToCents(text: string): number | null {
+  const cleaned = text.replace(/[^\d.,]/g, "").replace(",", ".");
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? Math.round(num * 100) : null;
+}
+
+/* ---------- Link do WhatsApp ---------- */
+
 export function whatsappUrl(number: string, message: string): string {
-  const digits = normalizeWhatsApp(number);
+  const digits = number.replace(/\D/g, "");
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+/* ---------- Troco ---------- */
+
+export function changeForLabel(changeFor: string): string {
+  const cents = parsePriceToCents(changeFor);
+  return cents ? formatBRL(cents) : "valor não informado";
 }

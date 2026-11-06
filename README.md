@@ -1,76 +1,113 @@
-# 🍔 Mary Delivery — cardápio digital com pedidos pelo WhatsApp
+# Delícias do Barão — Cardápio Digital
 
-Cardápio do delivery de lanches **Mary Delivery**: o cliente monta o pedido passo a
-passo no celular e, no final, o WhatsApp abre com o pedido preenchido para o número
-da loja — ele mesmo toca em enviar.
+Cardápio digital para delivery de quentinhas caseiras, baseado na arquitetura do Mary Delivery.
 
-- **Cardápio do cliente**: `SEU-LINK/mary-delivery` (a raiz `/` também abre lá).
-- **Painel administrativo**: `SEU-LINK/admin` — instalável como aplicativo (PWA).
-- **Acesso inicial do painel**: usuário `admin` · senha `mary-lanches-2026`
-  (**troque em Configurações → Meu acesso**; o painel avisa até você trocar).
+## Stack
+- **Next.js 16** (App Router, Server Components)
+- **Drizzle ORM** + **PostgreSQL** (Neon — região São Paulo `sa-east-1`)
+- **Tailwind CSS 4** (tema customizado: creme/vinho/dourado/marrom)
+- **TypeScript** estrito
+- **PWA** (instalável no celular, offline básico)
+- **Deploy**: Vercel + Neon
 
-O sistema **não envia mensagens automaticamente** e **não calcula taxa de entrega** —
-quando há entrega, o valor é combinado pelo WhatsApp com o cliente.
+## Estrutura do projeto
+```
+delicias-do-barao/
+├── src/
+│   ├── app/                    # App Router (Next.js 16)
+│   │   ├── [slug]/             # Cardápio público (home + pedido)
+│   │   ├── admin/              # Painel administrativo
+│   │   └── api/                # Rotas de API (pedidos, upload, imagens, health)
+│   ├── components/
+│   │   ├── admin/              # Componentes do painel
+│   │   └── order/              # Componentes do fluxo de pedido (OrderBuilder, InstallApp)
+│   ├── db/                     # Drizzle: schema, seed, conexão
+│   └── lib/                    # Utilitários (auth, data, format, order, password)
+├── public/
+│   ├── sw-cardapio.js          # Service Worker do cardápio
+│   └── sw.js                   # Service Worker do painel
+├── supabase/
+│   ├── schema.sql              # Schema idempotente (rodar no SQL Editor)
+│   └── cardapio-real.sql       # Cardápio real (quentinhas + bebidas)
+└── scripts/
+    └── create-establishment.ts # Script para criar novos estabelecimentos
+```
 
-## Fluxo do cliente
+## Cores (tema Delícias do Barão)
+| Uso | Cor | Hex |
+|-----|-----|-----|
+| Header/Navegação fundo | Creme | `#FDF6E3` |
+| Header/Navegação texto | Vinho | `#7A0C1B` |
+| Hero Section fundo | Vinho | `#7A0C1B` |
+| Hero textos | Branco/Dourado | `#FFFFFF` / `#E5A823` |
+| CTA WhatsApp | Dourado | `#E5A823` |
+| Cards produtos | Branco | `#FFFFFF` |
+| Borda cards | Vinho | `#7A0C1B` |
+| Nomes pratos | Marrom Escuro | `#2B170B` |
+| Preços | Vinho/Dourado | `#7A0C1B` / `#E5A823` |
+| Footer fundo | Marrom Escuro | `#2B170B` |
+| Footer textos | Creme/Branco | `#FDF6E3` / `#FFFFFF` |
 
-**produto → personalização → carrinho → bebida → recebimento (retirada/entrega) →
-dados/endereço → pagamento → observações → revisão → enviar pelo WhatsApp**
+## Cardápio
+- **Quentinhas**: 12 proteínas × 2 tamanhos (M/G) = 24 opções
+  - Base: arroz, feijão, farofa + proteína + até 3 acompanhamentos
+  - Acompanhamentos: couve, salada, batata frita, farofa extra, vinagrete
+  - Extras: ovo frito, bacon, queijo extra
+- **Bebidas**: 21 opções (refrigerantes, água, guaraviton, guaravita, H2OH, limoneto)
 
-## O que o painel controla (tudo pelo celular)
-
-- **Cardápio → Produtos**: nome, categoria, descrição, preço, foto, disponibilidade e
-  composição (itens inclusos, proteína à escolha, acompanhamentos à escolha com limite,
-  adicionais e observações liberados). Para uma lanchonete basta cadastrar os lanches
-  como produtos simples, os adicionais (bacon, ovo...) e as bebidas.
-- **Cardápio → Adicionais e Bebidas**: os itens extras que valem para todos os produtos;
-  bebida opcional ou obrigatória.
-- **Pedidos**: lista dos pedidos enviados pelo cardápio (registrados quando o cliente
-  toca em "Enviar pelo WhatsApp"), com o texto completo, botão para falar com o cliente
-  e marcação de atendido.
-- **Configurações**: dados do negócio (nome, ícone, logo, imagem principal, endereço do
-  link), **WhatsApp que recebe os pedidos** (com botão Testar WhatsApp — sem um número
-  válido o cardápio não é publicado), entrega (retirada no local, entrega própria,
-  entrega por aplicativo), pagamentos (Pix, dinheiro com pergunta de troco, cartão...)
-  e horários.
-- **Pausar / reabrir pedidos** com um toque na tela inicial.
-
-## Como colocar no ar
-
-O site roda na **Vercel** com banco **Supabase**. O passo a passo completo (criar o
-projeto no Supabase, criar as tabelas, subir para um repositório privado no GitHub e
-publicar na Vercel) está no **[DEPLOY.md](DEPLOY.md)**.
-
-Na primeira visita a um banco vazio, o site cria sozinho o Mary Delivery, um cardápio
-de exemplo e o acesso ao painel — e nasce **pausado** até você montar o cardápio real
-e clicar em **REABRIR PEDIDOS**.
-
-## Rodar localmente (opcional)
-
+## Como rodar localmente
 ```bash
+# 1. Instalar dependências
 npm install
-npx drizzle-kit push      # cria as tabelas (ou rode supabase/schema.sql no Supabase)
+
+# 2. Configurar .env (copie de .env.example)
+cp .env.example .env
+# Edite .env com sua DATABASE_URL do Neon (Pooled connection)
+# Ex: postgresql://user:pass@ep-xxx.sa-east-1.aws.neon.tech/dbname?sslmode=require
+
+# 3. Rodar schema no Neon SQL Editor
+# Cole supabase/schema.sql → Run
+
+# 4. Popular cardápio real (opcional)
+# Cole supabase/cardapio-real.sql → Run
+
+# 5. Desenvolvimento
 npm run dev
+# Acesse http://localhost:3000 → redireciona para /delicias-do-barao
+# Painel: http://localhost:3000/admin (admin / barao-2026)
 ```
 
-Variáveis: `DATABASE_URL` (obrigatória; no Supabase use a string da aba *Connection
-pooling* — veja o `.env.example`) e, opcionais, `ADMIN_PASSWORD` (senha inicial do
-painel) e `DEFAULT_ESTABLISHMENT_SLUG`.
+## Deploy (Vercel + Neon)
+1. **Neon**: Crie projeto em São Paulo (`sa-east-1`) → Connection String → Pooled
+2. **SQL Editor**: Rode `supabase/schema.sql` → Run
+3. **GitHub**: `git init && git add . && git commit -m "init" && git push` (repo PRIVADO)
+4. **Vercel**: Import repo → Environment Variables → `DATABASE_URL` (Neon Pooled, 3 ambientes) → Deploy
+5. **Painel**: Acesse `/admin` → login → Configure WhatsApp, logo, hero, horários, endereço retirada → "REABRIR PEDIDOS"
 
-## Tecnologia
+> Detalhes completos: **DEPLOY.md**
 
-- Next.js (App Router) + React 19, Tailwind CSS 4, PostgreSQL com Drizzle ORM
-- Autenticação própria: sessões no banco, cookie httpOnly, senhas com scrypt
-- Fotos guardadas no banco (limite de 4 MB por upload, redimensionadas no navegador)
-- PWA do painel: `public/admin-manifest.webmanifest` + `public/sw.js`
-
-## Uso avançado
-
-O sistema suporta mais de um estabelecimento no mesmo banco de dados (cada um com seu
-link `/<endereco>` e seu próprio painel), mas o Mary Delivery usa apenas um. Para criar
-outro no futuro:
-
+## Comandos úteis
 ```bash
-npx tsx scripts/create-establishment.ts --nome "Pizzaria Bella" --usuario admin --senha minhasenha \
-  --slug pizzaria-bella --whatsapp "(21) 99999-9999" --emoji 🍕
+npm run dev       # Desenvolvimento
+npm run build     # Build de produção (typecheck incluso)
+npm run lint      # ESLint
+npm run typecheck # tsc --noEmit
 ```
+
+## Scripts
+```bash
+npx tsx scripts/create-establishment.ts  # Criar novo estabelecimento multi-tenant
+```
+
+## Checklist de produção (DEPLOY.md)
+- [ ] Neon São Paulo (`sa-east-1`) + schema.sql rodado (RLS enabled)
+- [ ] Repo GitHub privado + Vercel importado
+- [ ] DATABASE_URL na Vercel (3 ambientes, Neon Pooled, senha real)
+- [ ] WhatsApp cadastrado no painel (formato 55DD9XXXXXXXX)
+- [ ] Logo + Hero cadastrados no painel
+- [ ] Horários, dias, endereço de retirada, áreas de entrega
+- [ ] Formas de pagamento ativas
+- [ ] Cardápio real rodado (cardapio-real.sql) ou cadastrado no painel
+- [ ] Fotos dos produtos subidas no painel (APÓS rodar SQL)
+- [ ] "REABRIR PEDIDOS" no painel
+- [ ] Testar pedido completo no celular (PWA instala)

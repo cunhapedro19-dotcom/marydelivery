@@ -1,20 +1,19 @@
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { images } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { notFound } from "next/navigation";
+import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!/^[a-f0-9]{24}$/.test(id)) return new Response("Não encontrado", { status: 404 });
-
-  const [image] = await db.select().from(images).where(eq(images.id, id)).limit(1);
-  if (!image) return new Response("Não encontrado", { status: 404 });
-
-  return new Response(new Uint8Array(image.data), {
+  const rows = await db.select().from(images).where(eq(images.id, id)).limit(1);
+  if (rows.length === 0) notFound();
+  const img = rows[0];
+  // Buffer -> Blob (BodyInit válido para NextResponse)
+  const body = new Blob([img.data], { type: img.mimeType });
+  return new NextResponse(body, {
     headers: {
-      "Content-Type": image.mimeType,
-      "Content-Length": String(image.data.length),
+      "Content-Type": img.mimeType,
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });

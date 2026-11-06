@@ -12,11 +12,11 @@ import { hashPassword } from "@/lib/password";
 
 /* ---------- Acesso inicial do painel ---------- */
 
-/** Nome de usuário criado junto com o Mary Delivery (para criar outros, use o script scripts/create-establishment.ts). */
+/** Nome de usuário criado junto com o Delícias do Barão. */
 export const DEFAULT_ADMIN_USERNAME = "admin";
 
 /** Senha inicial — o painel avisa até você trocar em Configurações → Meu acesso. */
-export const DEFAULT_ADMIN_PASSWORD = "mary-lanches-2026";
+export const DEFAULT_ADMIN_PASSWORD = "barao-2026";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Tx | typeof db;
@@ -24,7 +24,7 @@ type Executor = Tx | typeof db;
 let seededInThisProcess = false;
 
 /**
- * Cria o Mary Delivery na primeira execução (banco vazio): dados do negócio,
+ * Cria o Delícias do Barão na primeira execução (banco vazio): dados do negócio,
  * WhatsApp que recebe os pedidos, cardápio de exemplo, pagamentos e o acesso ao painel.
  */
 export async function ensureSeeded(): Promise<void> {
@@ -36,12 +36,11 @@ export async function ensureSeeded(): Promise<void> {
     const existing = await tx.select({ id: establishments.id }).from(establishments).limit(1);
     if (existing.length === 0) {
       const est = await createEstablishment(tx, {
-        slug: "mary-delivery",
-        name: "Mary Delivery",
-        emoji: "🍔",
-        description: "Delivery de lanches artesanais.",
-        // WhatsApp do dono: (21) 96628-6896
-        whatsappNumber: "5521966286896",
+        slug: "delicias-do-barao",
+        name: "Delícias do Barão",
+        emoji: "🍲",
+        description: "Quentinhas caseiras com sabor de casa.",
+        whatsappNumber: "5521999999999",
         adminUsername: DEFAULT_ADMIN_USERNAME,
         adminEmail: null,
         adminPassword: process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD,
@@ -88,7 +87,7 @@ export async function createEstablishment(executor: Executor, input: NewEstablis
     .values({
       slug: input.slug,
       name: input.name,
-      emoji: input.emoji ?? "🍔",
+      emoji: input.emoji ?? "🍲",
       description: input.description ?? "",
       heroUrl: input.heroUrl ?? null,
       whatsappNumber: input.whatsappNumber ?? "",
@@ -126,26 +125,24 @@ export async function createEstablishment(executor: Executor, input: NewEstablis
 }
 
 /**
- * Cardápio de EXEMPLO para você começar a editar no painel: alguns lanches, porção, adicionais e bebidas.
+ * Cardápio de EXEMPLO para você começar a editar no painel: algumas quentinhas, adicionais e bebidas.
  * Troque nomes, preços e fotos em Cardápio → Produtos antes de reabrir os pedidos.
  */
 async function seedMenuExemplo(executor: Executor, establishmentId: number) {
   await executor.insert(menuItems).values([
     // Adicionais
-    { establishmentId, category: "extra", name: "Bacon", priceCents: 500, sortOrder: 1 },
-    { establishmentId, category: "extra", name: "Cheddar extra", priceCents: 300, sortOrder: 2 },
-    { establishmentId, category: "extra", name: "Ovo", priceCents: 200, sortOrder: 3 },
+    { establishmentId, category: "extra", name: "Ovo frito", priceCents: 200, sortOrder: 1 },
+    { establishmentId, category: "extra", name: "Bacon", priceCents: 300, sortOrder: 2 },
+    { establishmentId, category: "extra", name: "Queijo extra", priceCents: 200, sortOrder: 3 },
     // Bebidas
-    { establishmentId, category: "drink", name: "Coca-Cola", description: "Lata 350ml", priceCents: 500, sortOrder: 1 },
-    { establishmentId, category: "drink", name: "Guaraná", description: "Lata 350ml", priceCents: 500, sortOrder: 2 },
-    { establishmentId, category: "drink", name: "Suco natural", description: "Copo 300ml", priceCents: 600, sortOrder: 3 },
+    { establishmentId, category: "drink", name: "Coca-Cola Lata", priceCents: 800, sortOrder: 1 },
+    { establishmentId, category: "drink", name: "Guaraná Lata", priceCents: 700, sortOrder: 2 },
+    { establishmentId, category: "drink", name: "Água 500ml", priceCents: 400, sortOrder: 3 },
   ]);
 
   await executor.insert(meals).values([
-    { establishmentId, name: "X-Burger", category: "Lanches", description: "Pão, hambúrguer 150g, queijo, alface e tomate.", priceCents: 2200, sortOrder: 1, maxChoices: 0 },
-    { establishmentId, name: "X-Salada", category: "Lanches", description: "Pão, hambúrguer 150g, queijo, salada completa e maionese da casa.", priceCents: 2500, sortOrder: 2, maxChoices: 0 },
-    { establishmentId, name: "X-Bacon", category: "Lanches", description: "Pão, hambúrguer 150g, queijo e bacon crocante.", priceCents: 2900, sortOrder: 3, maxChoices: 0 },
-    { establishmentId, name: "X-Frango", category: "Lanches", description: "Pão, filé de frango grelhado, queijo, alface e tomate.", priceCents: 2400, sortOrder: 4, maxChoices: 0 },
-    { establishmentId, name: "Batata frita", category: "Porções", description: "Porção média, serve 2 pessoas.", priceCents: 1200, sortOrder: 5, maxChoices: 0, allowExtras: false },
+    { establishmentId, name: "Quentinha Grelhado M", category: "Quentinhas", description: "Arroz, feijão, farofa, grelhado + 2 acompanhamentos", priceCents: 2000, sortOrder: 1, maxChoices: 2, allowExtras: true, allowNotes: true },
+    { establishmentId, name: "Quentinha Frango à Milanesa M", category: "Quentinhas", description: "Arroz, feijão, farofa, frango à milanesa + 2 acompanhamentos", priceCents: 2000, sortOrder: 2, maxChoices: 2, allowExtras: true, allowNotes: true },
+    { establishmentId, name: "Coca-Cola 2L", category: "Bebidas", description: "", priceCents: 1700, sortOrder: 1, maxChoices: 0, allowExtras: false, allowNotes: false },
   ]);
 }

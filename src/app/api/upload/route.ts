@@ -1,28 +1,38 @@
-import { randomBytes } from "node:crypto";
 import { db } from "@/db";
 import { images } from "@/db/schema";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 
-export const dynamic = "force-dynamic";
+export async function POST(req: NextRequest) {
+  try {
+    await requireAdmin(); // Só admin logado pode subir imagem
 
-const MAX_BYTES = 4 * 1024 * 1024; // 4 MB
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+    if (!file) return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
 
-export async function POST(request: Request) {
-  const session = await getAdminSession();
-  if (!session) return Response.json({ error: "Não autorizado" }, { status: 401 });
+    // Validações básicas
+    if (!file.type.startsWith("image/")) return NextResponse.json({ error: "Apenas imagens" }, { status: 400 });
+    if (file.size > 2 * 1024 * 1024) return NextResponse.json({ error: "Arquivo muito grande (máx. 2MB)" }, { status: 400 });
 
-  const form = await request.formData();
-  const file = form.get("file");
-  if (!(file instanceof Blob)) return Response.json({ error: "Arquivo ausente" }, { status: 400 });
-  if (file.size === 0 || file.size > MAX_BYTES) {
-    return Response.json({ error: "A foto precisa ter até 4 MB" }, { status: 400 });
+    // Processa com sharp: redimensiona para max 1200px, converte para JPEG qualidade 80
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const processed = await sharp(buffer)
+      .resize({ width: 1200, withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+
+    const id = crypto.randomUUID();
+    await db.insert(images).values({
+      id,
+      mimeType: "image/jpeg",
+      data: processed,
+    });
+
+    return NextResponse.json({ id });
+  } catch (err) {
+    console.error("Erro no upload:", err);
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
-  const mimeType = ALLOWED.has(file.type) ? file.type : "image/jpeg";
-
-  const id = randomBytes(12).toString("hex");
-  const data = Buffer.from(await file.arrayBuffer());
-  await db.insert(images).values({ id, establishmentId: session.establishmentId, mimeType, data });
-
-  return Response.json({ url: `/api/imagens/${id}` });
 }

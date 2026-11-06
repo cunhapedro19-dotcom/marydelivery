@@ -1,97 +1,82 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
-import { cookies, headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { cache } from "react";
-import { and, eq, gt, or } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { adminUsers, sessions } from "@/db/schema";
-import { DEFAULT_ADMIN_PASSWORD } from "@/db/seed";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { verifyPassword } from "@/lib/password";
+import { notFound } from "next/navigation";
 
-export { hashPassword, verifyPassword, DEFAULT_ADMIN_PASSWORD };
+export type AdminSession = {
+  userId: number;
+  establishmentId: number;
+  username: string;
+};
 
-export const SESSION_COOKIE = "cardapio_admin_sessao";
+const SESSION_COOKIE = "admin_session";
 const SESSION_DAYS = 30;
 
-async function isSecureRequest(): Promise<boolean> {
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto");
-  if (proto) return proto.split(",")[0].trim() === "https";
-  return process.env.NODE_ENV === "production" && !!process.env.VERCEL;
-}
-
-export async function createSession(userId: number) {
-  const token = randomBytes(32).toString("hex");
+/** Cria sessão e define cookie httpOnly. */
+export async function createSession(userId: number, establishmentId: number, username: string) {
+  const token = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
   await db.insert(sessions).values({ token, userId, expiresAt });
-  const store = await cookies();
-  store.set(SESSION_COOKIE, token, {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    secure: await isSecureRequest(),
+    maxAge: SESSION_DAYS * 24 * 60 * 60,
     path: "/",
-    expires: expiresAt,
   });
 }
 
-export async function destroySession() {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (token) {
-    await db.delete(sessions).where(eq(sessions.token, token));
-  }
-  store.delete(SESSION_COOKIE);
-}
-
-/** Sessão da pessoa logada. */
-export type AdminSession = {
-  userId: number;
-  username: string;
-  email: string | null;
-  establishmentId: number;
-};
-
-export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+/** Lê sessão do cookie (retorna null se inválida/expirada). */
+export async function getSession(): Promise<AdminSession | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const rows = await db
-    .select({
-      userId: sessions.userId,
-      username: adminUsers.username,
-      email: adminUsers.email,
-      establishmentId: adminUsers.establishmentId,
-    })
+    .select({ userId: sessions.userId, establishmentId: adminUsers.establishmentId, username: adminUsers.username })
     .from(sessions)
     .innerJoin(adminUsers, eq(adminUsers.id, sessions.userId))
-    .where(and(eq(sessions.token, token), gt(sessions.expiresAt, new Date())))
+    .where(eq(sessions.token, token))
     .limit(1);
-  return rows[0] ?? null;
-});
+  if (rows.length === 0) return null;
+  const { userId, establishmentId, username } = rows[0];
+  if (new Date() > new Date((await db.select({ expiresAt: sessions.expiresAt }).from(sessions).where(eq(sessions.token, token)).limit(1))[0]?.expiresAt ?? 0)) {
+    await db.delete(sessions).where(eq(sessions.token, token));
+    return null;
+  }
+  return { userId, establishmentId, username };
+}
 
-/** Garante que existe alguém logado. Redireciona para o login se não houver. */
+/** Exige sessão válida (lança notFound se não tiver). */
 export async function requireAdmin(): Promise<AdminSession> {
-  const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
+  const session = await getSession();
+  if (!session) notFound();
   return session;
 }
 
-/** Busca o usuário pelo nome de usuário OU pelo e-mail (se algum dia for cadastrado). */
-export async function authenticate(identifier: string, password: string) {
-  const id = identifier.trim().toLowerCase();
-  const user = await db
-    .select()
-    .from(adminUsers)
-    .where(or(eq(adminUsers.username, id), eq(adminUsers.email, id)))
-    .limit(1);
-  const found = user[0];
-  if (!found || !verifyPassword(password, found.passwordHash)) return null;
-  return found;
+/** Remove sessão (logout). */
+export async function destroySession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (token) {
+    await db.delete(sessions).where(eq(sessions.token, token));
+    cookieStore.delete(SESSION_COOKIE);
+  }
 }
 
-/** O usuário logado ainda usa a senha inicial? (para avisar na tela inicial do painel) */
-export async function currentUserHasDefaultPassword(userId: number): Promise<boolean> {
-  const [user] = await db.select().from(adminUsers).where(eq(adminUsers.id, userId));
-  return !!user && verifyPassword(DEFAULT_ADMIN_PASSWORD, user.passwordHash);
+/** Verifica credenciais e cria sessão se ok. */
+export async function login(username: string, password: string): Promise<{ establishmentId: number } | null> {
+  const rows = await db
+    .select({ id: adminUsers.id, establishmentId: adminUsers.establishmentId, passwordHash: adminUsers.passwordHash })
+    .from(adminUsers)
+    .where(eq(adminUsers.username, username.toLowerCase()))
+    .limit(1);
+  if (rows.length === 0) return null;
+  const { id, establishmentId, passwordHash } = rows[0];
+  if (!verifyPassword(password, passwordHash)) return null;
+  await createSession(id, establishmentId, username.toLowerCase());
+  return { establishmentId };
 }

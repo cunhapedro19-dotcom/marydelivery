@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { MenuItem, ReceivingMode } from "@/db/schema";
+import type { MenuItem } from "@/db/schema";
 import { emojiFor, formatBRL, formatPhone, isValidWhatsApp, onlyDigits, parsePriceToCents } from "@/lib/format";
 import {
   availableReceivingModes,
@@ -11,7 +11,6 @@ import {
   emptySelection,
   mealSubSteps,
   newLineKey,
-  orderSummary,
   resolveLine,
   resolveOrder,
   whatsappUrl,
@@ -37,7 +36,7 @@ const PHASE_LABELS: Record<Phase, string> = {
   notes: "Observações",
   review: "Confirmar",
 };
-const NOTE_SUGGESTIONS = ["Sem cebola", "Sem tomate", "Sem alface", "Sem maionese", "Sem picles", "Molho à parte", "Bem passado"];
+const NOTE_SUGGESTIONS = ["Sem cebola", "Sem tomate", "Sem sal", "Molho à parte", "Bem passado", "Pouco arroz", "Sem farofa"];
 
 type Persisted = { sel: OrderSelection; view: View };
 
@@ -64,7 +63,7 @@ function sanitize(menu: MenuData, raw: Partial<OrderSelection> | undefined): Ord
     drinkQty,
     note: String(raw?.note ?? ""),
     receivingMode,
-    customer: { ...emptySelection.customer, ...(raw?.customer ?? {}) },
+    customer: { ...emptySelection().customer, ...(raw?.customer ?? {}) },
     paymentMethodId: menu.payments.some((p) => p.id === raw?.paymentMethodId) ? (raw?.paymentMethodId ?? null) : null,
     needsChange: raw?.needsChange ?? null,
     changeFor: String(raw?.changeFor ?? ""),
@@ -80,7 +79,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
   const storageKey = `pedido-${config.slug}-v5`;
   const receivingOptions = useMemo(() => availableReceivingModes(config), [config]);
 
-  const [sel, setSel] = useState<OrderSelection>(emptySelection);
+  const [sel, setSel] = useState<OrderSelection>(emptySelection());
   const [view, setView] = useState<View>(() => ({ phase: "builder", sub: "meal", lineKey: newLineKey() }));
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -341,8 +340,8 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
     switch (view.phase) {
       case "builder":
         // Na lista do menu dá pra continuar só com bebida (ou com o que já está no pedido)
-        if (view.sub === "meal" && !currentMeal) return cartCount > 0 ? null : "Adicione um produto ou uma bebida para continuar.";
-        if (!currentLine || !currentMeal) return "Escolha um produto para continuar.";
+        if (view.sub === "meal" && !currentMeal) return cartCount > 0 ? null : "Adicione uma quentinha ou uma bebida para continuar.";
+        if (!currentLine || !currentMeal) return "Escolha uma quentinha para continuar.";
         if (view.sub === "protein" && !currentLine.proteinId) return "Escolha a proteína para continuar.";
         return null;
       case "cart":
@@ -494,30 +493,30 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         : "Entrega (se houver): consultar pelo WhatsApp";
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-night-950 sm:my-6 sm:min-h-0 sm:rounded-[2rem] sm:shadow-xl">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-cream-100 sm:my-6 sm:min-h-0 sm:overflow-hidden sm:rounded-[2rem] sm:shadow-xl">
       {/* Cabeçalho com progresso */}
-      <header className="sticky top-0 z-20 border-b border-night-800 bg-night-950/95 px-4 pb-3 pt-3 backdrop-blur sm:rounded-t-[2rem]">
+      <header className="sticky top-0 z-20 border-b border-cream-300 bg-cream-100/95 px-4 pb-3 pt-3 backdrop-blur sm:rounded-t-[2rem]">
         <div className="flex items-center gap-3">
           {prev ? (
-            <button type="button" onClick={back} aria-label="Voltar" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-night-800 text-xl shadow-sm">
+            <button type="button" onClick={back} aria-label="Voltar" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cream-200 text-xl shadow-sm text-wine-700">
               ←
             </button>
           ) : (
-            <Link href={`/${config.slug}`} aria-label="Voltar ao início" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-night-800 text-xl shadow-sm">
+            <Link href={`/${config.slug}`} aria-label="Voltar ao início" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cream-200 text-xl shadow-sm text-wine-700">
               ←
             </Link>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-bold uppercase tracking-wide text-white/55">
+            <p className="truncate text-xs font-bold uppercase tracking-wide text-brown-500">
               Etapa {phaseIndex + 1} de {PHASES.length} · {PHASE_LABELS[view.phase]}
               {view.phase === "builder" && currentMeal && sel.lines.length > 1 ? ` ${lineNumber}` : ""}
-              {view.phase === "builder" && currentMeal && view.sub !== "meal" ? ` · ${currentMeal.name}` : ""}
+              {view.phase === "builder" && currentMeal && view.sub !== "meal" ? ` · {currentMeal.name}` : ""}
             </p>
-            <h1 className="truncate font-display text-xl leading-tight tracking-wide">{title}</h1>
+            <h1 className="truncate font-display text-xl leading-tight tracking-wide text-wine-700">{title}</h1>
           </div>
         </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-night-800">
-          <div className="h-full rounded-full bg-neon-pink shadow-[0_0_14px_rgba(255,46,136,0.55)] transition-all duration-300" style={{ width: `${((phaseIndex + 1) / PHASES.length) * 100}%` }} />
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-cream-200">
+          <div className="h-full rounded-full bg-gold-400 shadow-[0_0_14px_rgba(229,168,35,0.5)] transition-all duration-300" style={{ width: `${((phaseIndex + 1) / PHASES.length) * 100}%` }} />
         </div>
       </header>
 
@@ -526,15 +525,15 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "builder" && view.sub === "meal" && (
           <div className="space-y-3">
             {cartCount > 0 && (
-              <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm font-bold text-white/80">
+              <p className="rounded-2xl bg-cream-200 px-4 py-3 text-sm font-bold text-brown-700 border border-cream-300">
                 🛒 Seu pedido já tem {cartCount} {cartCount === 1 ? "item" : "itens"} — pode adicionar mais.
               </p>
             )}
-            {menu.meals.length > 0 && <p className="px-1 text-sm text-white/55">Toque no produto pra escolher as opções, ou no + pra adicionar direto.</p>}
-            {menu.meals.length === 0 && <EmptyNotice text="Nenhum produto disponível no momento." />}
+            {menu.meals.length > 0 && <p className="px-1 text-sm text-brown-500">Toque na quentinha pra escolher os acompanhamentos, ou no + pra adicionar direto.</p>}
+            {menu.meals.length === 0 && <EmptyNotice text="Nenhuma quentinha disponível no momento." />}
             {mealGroups.map((group) => (
               <div key={group.name || "_"} className="space-y-3">
-                {showGroupTitles && <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-neon-gold">{group.name || "Outros"}</h2>}
+                {showGroupTitles && <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-gold-500">{group.name || "Outros"}</h2>}
                 {group.meals.map((m) => {
                   const selected = currentLine?.mealId === m.id;
                   // Quantos deste produto já estão no pedido (mostra a seleção múltipla)
@@ -543,7 +542,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                   if (m.proteins.length) hints.push("você escolhe a proteína");
                   if (m.choices.length && m.maxChoices > 0) hints.push(`até ${m.maxChoices} acompanhamento${m.maxChoices === 1 ? "" : "s"} à sua escolha`);
                   return (
-                    <div key={m.id} className={`option-card flex-col !items-stretch !p-0 overflow-hidden ${selected ? "option-card-selected" : ""}`}>
+                    <div key={m.id} className={`option-card flex-col !items-stretch !p-0 overflow-hidden card-hover ${selected ? "option-card-selected" : ""}`}>
                       {m.imageUrl && <img src={m.imageUrl} alt={m.name} className="h-44 w-full object-cover" loading="lazy" />}
                       <div className="p-4">
                         <div className="flex items-center gap-3">
@@ -553,17 +552,17 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                             className="flex min-w-0 flex-1 items-center gap-3 text-left"
                           >
                             <span className="min-w-0 flex-1">
-                              <span className="block text-lg font-extrabold leading-tight">{m.name}</span>
-                              {m.description && <span className="mt-0.5 block text-sm text-white/55">{m.description}</span>}
+                              <span className="block text-lg font-extrabold leading-tight text-brown-900">{m.name}</span>
+                              {m.description && <span className="mt-0.5 block text-sm text-brown-600">{m.description}</span>}
                             </span>
-                            <span className="shrink-0 text-base font-extrabold text-neon-gold">{formatBRL(m.priceCents)}</span>
+                            <span className="shrink-0 text-base font-extrabold text-wine-700">{formatBRL(m.priceCents)}</span>
                           </button>
                           {addedCount === 0 ? (
                             <button
                               type="button"
                               onClick={() => quickAdd(m)}
                               aria-label={`Adicionar ${m.name} ao pedido`}
-                              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-neon-pink text-xl font-extrabold text-white shadow-[0_0_14px_rgba(255,46,136,0.4)] active:scale-90"
+                              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold-400 text-xl font-extrabold text-brown-900 shadow-[0_0_14px_rgba(229,168,35,0.4)] active:scale-90"
                             >
                               +
                             </button>
@@ -574,16 +573,16 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                                 type="button"
                                 aria-label={`Remover uma unidade de ${m.name}`}
                                 onClick={() => removeQuick(m.id)}
-                                className="grid h-9 w-9 place-items-center rounded-full border-2 border-night-700 bg-night-800 text-lg font-extrabold text-white active:scale-90"
+                                className="grid h-9 w-9 place-items-center rounded-full border-2 border-brown-700 bg-brown-800 text-lg font-extrabold text-cream-100 active:scale-90"
                               >
                                 −
                               </button>
-                              <span className="w-7 text-center text-base font-extrabold text-neon-cyan">{addedCount}</span>
+                              <span className="w-7 text-center text-base font-extrabold text-gold-400">{addedCount}</span>
                               <button
                                 type="button"
                                 aria-label={`Adicionar mais um ${m.name}`}
                                 onClick={() => quickAdd(m)}
-                                className="grid h-9 w-9 place-items-center rounded-full bg-neon-pink text-lg font-extrabold text-white active:scale-90"
+                                className="grid h-9 w-9 place-items-center rounded-full bg-gold-400 text-lg font-extrabold text-brown-900 active:scale-90"
                               >
                                 +
                               </button>
@@ -591,11 +590,11 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                           )}
                         </div>
                         {m.included.length > 0 && (
-                          <p className="mt-3 text-sm text-white/80">
+                          <p className="mt-3 text-sm text-brown-700">
                             <span className="font-bold">Já acompanha:</span> {m.included.map((i) => `${emojiFor(i.name)} ${i.name}`).join(" · ")}
                           </p>
                         )}
-                        {hints.length > 0 && <p className="mt-1 text-xs font-semibold text-neon-cyan">✓ {hints.join(" · ")}</p>}
+                        {hints.length > 0 && <p className="mt-1 text-xs font-semibold text-gold-500">✓ {hints.join(" · ")}</p>}
                       </div>
                     </div>
                   );
@@ -605,7 +604,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
             {/* Bebidas no menu: dá pra comprar só bebida, sem produto principal */}
             {menu.drinks.length > 0 && (
               <div className="space-y-3">
-                <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-neon-gold">Bebidas</h2>
+                <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-gold-500">Bebidas</h2>
                 {menu.drinks.map((d) => (
                   <DrinkRow key={d.id} item={d} qty={sel.drinkQty[String(d.id)] ?? 0} onQty={(q) => setDrinkQty(d.id, q)} />
                 ))}
@@ -628,22 +627,22 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "builder" && view.sub === "sides" && currentMeal && currentLine && (
           <div className="space-y-3">
             {currentMeal.included.length > 0 && (
-              <section className="rounded-2xl border border-neon-cyan/25 bg-neon-cyan/10 p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-neon-cyan">Já inclusos</p>
+              <section className="rounded-2xl border border-gold-400/25 bg-gold-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-gold-600">Já inclusos</p>
                 <ul className="mt-1.5 space-y-1">
                   {currentMeal.included.map((i) => (
                     <li key={i.id} className="flex items-center gap-2 font-bold">
-                      <span className="text-neon-cyan">✓</span>
+                      <span className="text-gold-600">✓</span>
                       <span>{emojiFor(i.name)} {i.name}</span>
                     </li>
                   ))}
                 </ul>
               </section>
             )}
-            <div className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${limitNotice ? "bg-neon-pink text-white" : "bg-night-800 text-white/80"}`} role="status" aria-live="polite">
+            <div className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${limitNotice ? "bg-wine-700 text-cream-100" : "bg-brown-800 text-cream-100/80"}`} role="status" aria-live="polite">
               {limitNotice ?? `Você escolheu ${sidesCount} de ${maxChoices} acompanhamento${maxChoices === 1 ? "" : "s"}.`}
             </div>
-            <p className="px-1 text-xs font-bold uppercase tracking-wide text-white/55">Escolha até {maxChoices}</p>
+            <p className="px-1 text-xs font-bold uppercase tracking-wide text-brown-500">Escolha até {maxChoices}</p>
             {currentMeal.choices.map((s) => {
               const selected = currentLine.sideIds.includes(s.id);
               const full = !selected && sidesCount >= maxChoices;
@@ -656,7 +655,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "builder" && view.sub === "extras" && currentMeal && currentLine && (
           <div className="space-y-3">
             <IncludedBlock meal={currentMeal} chosen={currentResolved?.chosen} protein={currentResolved?.protein ?? null} />
-            <p className="text-sm text-white/55">Opcional. Toque para adicionar quantos quiser.</p>
+            <p className="text-sm text-brown-500">Opcional. Toque para adicionar quantos quiser.</p>
             {menu.extras.map((e) => (
               <OptionRow key={e.id} item={e} selected={currentLine.extraIds.includes(e.id)} kind="check" onClick={() => toggleExtra(e.id)} priceMode="extra" />
             ))}
@@ -667,11 +666,11 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "builder" && view.sub === "note" && currentMeal && currentLine && (
           <div className="space-y-3">
             <IncludedBlock meal={currentMeal} chosen={currentResolved?.chosen} protein={currentResolved?.protein ?? null} extras={currentResolved?.extras} />
-            <p className="text-sm text-white/55">Opcional. Ex.: sem cebola, sem tomate, bem passado...</p>
+            <p className="text-sm text-brown-500">Opcional. Ex.: sem cebola, sem tomate, bem passado...</p>
             <textarea className="input-public min-h-32" placeholder="Digite uma observação para este item..." value={currentLine.note} maxLength={300} onChange={(e) => updateLine(currentLine.key, { note: e.target.value })} />
             <div className="flex flex-wrap gap-2">
               {NOTE_SUGGESTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => appendNote(s)} className="min-h-10 rounded-full bg-night-800 px-3 text-sm font-bold text-white/80 active:scale-95">
+                <button key={s} type="button" onClick={() => appendNote(s)} className="min-h-10 rounded-full bg-brown-800 px-3 text-sm font-bold text-cream-100/80 active:scale-95">
                   + {s}
                 </button>
               ))}
@@ -684,13 +683,13 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
           <div className="space-y-4">
             {doneLines.length === 0 && drinksCount === 0 && <EmptyNotice text="Nenhum item no pedido ainda." />}
             {doneLines.map((l, index) => (
-              <article key={l.key} className="rounded-3xl border border-night-800 bg-night-900 p-4">
+              <article key={l.key} className="rounded-3xl border border-cream-300 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    {doneLines.length > 1 && <p className="text-xs font-bold uppercase tracking-wide text-white/55">Item {index + 1}</p>}
-                    <p className="text-lg font-extrabold leading-tight">{emojiFor(l.meal.name, "🍽️")} {l.meal.name}</p>
+                    {doneLines.length > 1 && <p className="text-xs font-bold uppercase tracking-wide text-brown-500">Item {index + 1}</p>}
+                    <p className="text-lg font-extrabold leading-tight text-brown-900">{emojiFor(l.meal.name, "🍽️")} {l.meal.name}</p>
                   </div>
-                  <p className="shrink-0 font-extrabold text-neon-gold">{formatBRL(l.price)}</p>
+                  <p className="shrink-0 font-extrabold text-wine-700">{formatBRL(l.price)}</p>
                 </div>
                 <div className="mt-3 space-y-2">
                   {l.protein && <Detail label="Proteína" items={[`${l.protein.name}${l.protein.priceCents ? ` + ${formatBRL(l.protein.priceCents)}` : ""}`]} />}
@@ -700,22 +699,22 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                   {l.note && <Detail label="Observação" items={[l.note]} highlight />}
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2">
-                  <button type="button" onClick={() => editLine(l)} className="min-h-11 rounded-xl bg-night-800 text-sm font-bold text-white active:scale-95">✏️ Editar</button>
-                  <button type="button" onClick={() => duplicateLine(l)} className="min-h-11 rounded-xl bg-night-800 text-sm font-bold text-white active:scale-95">＋ Repetir</button>
-                  <button type="button" onClick={() => removeLine(l.key)} className="min-h-11 rounded-xl bg-red-500/15 text-sm font-bold text-red-300 active:scale-95">🗑 Remover</button>
+                  <button type="button" onClick={() => editLine(l)} className="min-h-11 rounded-xl bg-cream-200 text-sm font-bold text-brown-900 active:scale-95">✏️ Editar</button>
+                  <button type="button" onClick={() => duplicateLine(l)} className="min-h-11 rounded-xl bg-cream-200 text-sm font-bold text-brown-900 active:scale-95">＋ Repetir</button>
+                  <button type="button" onClick={() => removeLine(l.key)} className="min-h-11 rounded-xl bg-red-50 text-sm font-bold text-red-700 active:scale-95">🗑 Remover</button>
                 </div>
               </article>
             ))}
             {menu.drinks.length > 0 && (
               <div className="space-y-3">
-                <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-neon-gold">Bebidas</h2>
-                {config.drinkRequired && <p className="text-sm text-white/55">Escolha pelo menos uma bebida para continuar.</p>}
+                <h2 className="px-1 pt-2 font-display text-sm uppercase tracking-wider text-gold-500">Bebidas</h2>
+                {config.drinkRequired && <p className="text-sm text-brown-500">Escolha pelo menos uma bebida para continuar.</p>}
                 {menu.drinks.map((d) => (
                   <DrinkRow key={d.id} item={d} qty={sel.drinkQty[String(d.id)] ?? 0} onQty={(q) => setDrinkQty(d.id, q)} />
                 ))}
               </div>
             )}
-            <button type="button" onClick={startNewMeal} className="btn-dark w-full !border-dashed">
+            <button type="button" onClick={startNewMeal} className="btn-dark w-full !border-dashed border-brown-700">
               ＋ Adicionar outro item
             </button>
             <Totals subtotal={order.subtotal} receivingMode={sel.receivingMode} />
@@ -732,19 +731,19 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                 <button key={opt.mode} type="button" onClick={() => update({ receivingMode: opt.mode })} className={`option-card ${selected ? "option-card-selected" : ""}`} aria-pressed={selected}>
                   <Radio checked={selected} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-base font-extrabold leading-tight">{opt.emoji} {opt.label}</span>
-                    <span className="mt-0.5 block text-sm text-white/55">{opt.description}</span>
+                    <span className="block text-base font-extrabold leading-tight text-brown-900">{opt.emoji} {opt.label}</span>
+                    <span className="mt-0.5 block text-sm text-brown-500">{opt.description}</span>
                   </span>
                 </button>
               );
             })}
             {receiving && receiving.mode !== "pickup" && (
-              <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm text-white/80">
+              <p className="rounded-2xl bg-cream-200 px-4 py-3 text-sm text-brown-700 border border-cream-300">
                 🛵 O valor da entrega não é cobrado aqui: ele é combinado pelo WhatsApp depois que você enviar o pedido.
                 {config.deliveryAreas && <> Atendemos: {config.deliveryAreas}.</>}
               </p>
             )}
-            {config.deliveryNotes && <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm text-white/80">ℹ️ {config.deliveryNotes}</p>}
+            {config.deliveryNotes && <p className="rounded-2xl bg-cream-200 px-4 py-3 text-sm text-brown-700 border border-cream-300">ℹ️ {config.deliveryNotes}</p>}
           </div>
         )}
 
@@ -752,13 +751,13 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {view.phase === "contact" && (
           <div className="space-y-4">
             {receiving?.mode === "pickup" && (
-              <section className="rounded-2xl border border-neon-cyan/25 bg-neon-cyan/10 p-4 text-sm">
-                <p className="text-xs font-bold uppercase tracking-wide text-neon-cyan">🏪 Retirada no local</p>
-                {config.pickupAddress && <p className="mt-1 font-bold text-white">📍 {config.pickupAddress}</p>}
-                {config.pickupHours && <p className="text-white/80">🕐 {config.pickupHours}</p>}
+              <section className="rounded-2xl border border-gold-400/25 bg-gold-50 p-4 text-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-gold-600">🏪 Retirada no local</p>
+                {config.pickupAddress && <p className="mt-1 font-bold text-brown-900">📍 {config.pickupAddress}</p>}
+                {config.pickupHours && <p className="text-brown-700">🕐 {config.pickupHours}</p>}
               </section>
             )}
-            <p className="text-sm text-white/55">Sem cadastro — só o necessário para {receiving?.needsAddress ? "a entrega chegar até você" : "avisarmos quando estiver pronto"}.</p>
+            <p className="text-sm text-brown-500">Sem cadastro — só o necessário para {receiving?.needsAddress ? "a entrega chegar até você" : "avisarmos quando estiver pronto"}.</p>
             <Field label="Seu nome">
               <input className="input-public" autoComplete="name" value={sel.customer.name} onChange={(e) => updateCustomer({ name: e.target.value })} placeholder="Como podemos te chamar?" />
             </Field>
@@ -801,25 +800,25 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
               return (
                 <button key={p.id} type="button" onClick={() => update({ paymentMethodId: p.id, needsChange: null, changeFor: "" })} className={`option-card ${selected ? "option-card-selected" : ""}`} aria-pressed={selected}>
                   <Radio checked={selected} />
-                  <span className="flex-1 text-base font-extrabold">{p.name}</span>
+                  <span className="flex-1 text-base font-extrabold text-brown-900">{p.name}</span>
                 </button>
               );
             })}
             {order.payment?.asksChange && (
-              <div className="mt-4 rounded-3xl border border-night-800 bg-night-900 p-4">
-                <p className="text-base font-extrabold">Precisa de troco?</p>
+              <div className="mt-4 rounded-3xl border border-cream-300 bg-white p-4">
+                <p className="text-base font-extrabold text-brown-900">Precisa de troco?</p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <button type="button" onClick={() => update({ needsChange: true })} className={`btn-dark ${sel.needsChange === true ? "!border-neon-pink !bg-neon-pink/15" : ""}`}>Sim</button>
-                  <button type="button" onClick={() => update({ needsChange: false, changeFor: "" })} className={`btn-dark ${sel.needsChange === false ? "!border-neon-pink !bg-neon-pink/15" : ""}`}>Não</button>
+                  <button type="button" onClick={() => update({ needsChange: true })} className={`btn-dark ${sel.needsChange === true ? "!border-gold-400 !bg-gold-50" : ""}`}>Sim</button>
+                  <button type="button" onClick={() => update({ needsChange: false, changeFor: "" })} className={`btn-dark ${sel.needsChange === false ? "!border-gold-400 !bg-gold-50" : ""}`}>Não</button>
                 </div>
                 {sel.needsChange && (
                   <div className="mt-4">
-                    <label className="label !text-neon-gold">Troco para quanto?</label>
+                    <label className="label !text-gold-500">Troco para quanto?</label>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-extrabold text-white/55">R$</span>
+                      <span className="text-lg font-extrabold text-brown-500">R$</span>
                       <input className="input-public" inputMode="decimal" value={sel.changeFor} onChange={(e) => update({ changeFor: e.target.value })} placeholder="50,00" />
                     </div>
-                    <p className="mt-1.5 text-xs text-white/55">
+                    <p className="mt-1.5 text-xs text-brown-500">
                       Subtotal dos produtos: {formatBRL(order.subtotal)}.{receiving?.needsAddress ? " O valor da entrega será somado depois." : ""}
                     </p>
                   </div>
@@ -832,10 +831,10 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
         {/* ---------- Observações do pedido ---------- */}
         {view.phase === "notes" && (
           <div className="space-y-3">
-            <p className="text-sm text-white/55">Opcional. Vale para o pedido todo. Ex.: molho à parte, sem pimenta, deixar na portaria...</p>
+            <p className="text-sm text-brown-500">Opcional. Vale para o pedido todo. Ex.: molho à parte, sem pimenta, deixar na portaria...</p>
             <textarea className="input-public min-h-36" placeholder="Digite uma observação para este pedido..." value={sel.note} maxLength={400} onChange={(e) => update({ note: e.target.value })} />
             {doneLines.some((l) => l.note) && (
-              <p className="rounded-2xl bg-night-800 px-4 py-3 text-sm text-white/80">
+              <p className="rounded-2xl bg-cream-200 px-4 py-3 text-sm text-brown-700 border border-cream-300">
                 ✅ As observações de cada item ({doneLines.filter((l) => l.note).length}) já estão salvas e vão junto no pedido.
               </p>
             )}
@@ -848,12 +847,12 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
             {order.groups.map((g, index) => {
               const l = g.line;
               return (
-                <div key={g.keys.join("-")} className="rounded-3xl border border-night-800 bg-night-900 p-5">
+                <div key={g.keys.join("-")} className="rounded-3xl border border-cream-300 bg-white p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-base font-extrabold">
+                    <p className="text-base font-extrabold text-brown-900">
                       {order.groups.length > 1 ? `${index + 1}. ` : ""}{g.qty}x {emojiFor(l.meal.name, "🍽️")} {l.meal.name}
                     </p>
-                    <p className="shrink-0 font-extrabold text-neon-gold">{formatBRL(l.price * g.qty)}</p>
+                    <p className="shrink-0 font-extrabold text-wine-700">{formatBRL(l.price * g.qty)}</p>
                   </div>
                   <div className="mt-2 space-y-2">
                     {l.protein && <Detail label="Proteína" items={[`${emojiFor(l.protein.name)} ${l.protein.name}${l.protein.priceCents ? ` + ${formatBRL(l.protein.priceCents)}` : ""}`]} />}
@@ -865,19 +864,19 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                 </div>
               );
             })}
-            <div className="rounded-3xl border border-night-800 bg-night-900 p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-white/55">Bebida</p>
+            <div className="rounded-3xl border border-cream-300 bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wide text-brown-500">Bebida</p>
               {order.drinks.length ? (
                 <ul className="mt-1 space-y-1 font-bold">
                   {order.drinks.map((d) => (
                     <li key={d.item.id} className="flex justify-between gap-3">
-                      <span>{emojiFor(d.item.name, "🥤")} {d.qty}x {d.item.name}</span>
-                      <span className="text-white/80">{formatBRL(d.item.priceCents * d.qty)}</span>
+                      <span className="text-brown-900">{emojiFor(d.item.name, "🥤")} {d.qty}x {d.item.name}</span>
+                      <span className="text-brown-700">{formatBRL(d.item.priceCents * d.qty)}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 font-bold">🚫 Sem bebida</p>
+                <p className="mt-1 font-bold text-brown-900">🚫 Sem bebida</p>
               )}
               {order.note && (
                 <div className="mt-3">
@@ -885,54 +884,54 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
                 </div>
               )}
               <div className="mt-3 flex gap-4">
-                <button type="button" onClick={() => setView({ phase: "cart" })} className="text-sm font-bold text-neon-gold underline">Editar pedido</button>
-                <button type="button" onClick={() => setView({ phase: "notes" })} className="text-sm font-bold text-neon-gold underline">Editar observação</button>
+                <button type="button" onClick={() => setView({ phase: "cart" })} className="text-sm font-bold text-gold-500 underline">Editar pedido</button>
+                <button type="button" onClick={() => setView({ phase: "notes" })} className="text-sm font-bold text-gold-500 underline">Editar observação</button>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-night-800 bg-night-900 p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-white/55">Recebimento</p>
-              <p className="mt-1 font-bold">{receiving?.emoji} {receiving?.label}</p>
-              <p className="mt-2 font-bold">{sel.customer.name} · {sel.customer.phone}</p>
+            <div className="rounded-3xl border border-cream-300 bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wide text-brown-500">Recebimento</p>
+              <p className="mt-1 font-bold text-brown-900">{receiving?.emoji} {receiving?.label}</p>
+              <p className="mt-2 font-bold text-brown-900">{sel.customer.name} · {sel.customer.phone}</p>
               {receiving?.needsAddress ? (
                 <>
-                  <p className="text-white/80">
+                  <p className="text-brown-700">
                     {sel.customer.street}, {sel.customer.number}
                     {sel.customer.complement ? ` — ${sel.customer.complement}` : ""}
                   </p>
-                  <p className="text-white/80">{sel.customer.neighborhood}</p>
-                  {sel.customer.reference && <p className="text-sm text-white/55">Ref.: {sel.customer.reference}</p>}
-                  {sel.customer.deliveryNote && <p className="text-sm text-white/55">Obs.: {sel.customer.deliveryNote}</p>}
+                  <p className="text-brown-700">{sel.customer.neighborhood}</p>
+                  {sel.customer.reference && <p className="text-sm text-brown-500">Ref.: {sel.customer.reference}</p>}
+                  {sel.customer.deliveryNote && <p className="text-sm text-brown-500">Obs.: {sel.customer.deliveryNote}</p>}
                 </>
               ) : (
                 <>
-                  {config.pickupAddress && <p className="text-white/80">📍 {config.pickupAddress}</p>}
-                  {config.pickupHours && <p className="text-sm text-white/55">🕐 {config.pickupHours}</p>}
+                  {config.pickupAddress && <p className="text-brown-700">📍 {config.pickupAddress}</p>}
+                  {config.pickupHours && <p className="text-sm text-brown-500">🕐 {config.pickupHours}</p>}
                 </>
               )}
               <div className="mt-2 flex gap-4">
-                <button type="button" onClick={() => setView({ phase: "receiving" })} className="text-sm font-bold text-neon-gold underline">Trocar recebimento</button>
-                <button type="button" onClick={() => setView({ phase: "contact" })} className="text-sm font-bold text-neon-gold underline">Editar dados</button>
+                <button type="button" onClick={() => setView({ phase: "receiving" })} className="text-sm font-bold text-gold-500 underline">Trocar recebimento</button>
+                <button type="button" onClick={() => setView({ phase: "contact" })} className="text-sm font-bold text-gold-500 underline">Editar dados</button>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-night-800 bg-night-900 p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-white/55">Pagamento</p>
-              <p className="mt-1 font-bold">{order.payment?.name}</p>
-              {order.payment?.asksChange && <p className="text-white/80">{sel.needsChange ? `Troco para ${changeForLabel(sel.changeFor)}` : "Não precisa de troco"}</p>}
-              <button type="button" onClick={() => setView({ phase: "payment" })} className="mt-2 text-sm font-bold text-neon-gold underline">Editar pagamento</button>
+            <div className="rounded-3xl border border-cream-300 bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wide text-brown-500">Pagamento</p>
+              <p className="mt-1 font-bold text-brown-900">{order.payment?.name}</p>
+              {order.payment?.asksChange && <p className="text-brown-700">{sel.needsChange ? `Troco para ${changeForLabel(sel.changeFor)}` : "Não precisa de troco"}</p>}
+              <button type="button" onClick={() => setView({ phase: "payment" })} className="mt-2 text-sm font-bold text-gold-500 underline">Editar pagamento</button>
             </div>
 
             <Totals subtotal={order.subtotal} receivingMode={sel.receivingMode} />
 
-            <p className="text-center text-sm text-white/80">
+            <p className="text-center text-sm text-brown-700">
               Ao tocar no botão, o WhatsApp abre com o pedido preenchido — você confere e envia.
               {receiving?.needsAddress ? " O estabelecimento confirma com você o valor da entrega e o total final." : ""}
             </p>
             {!isValidWhatsApp(config.whatsappNumber) && (
-              <p className="rounded-2xl bg-red-500/15 px-4 py-3 text-sm font-bold text-red-300">O número de WhatsApp ainda não foi configurado no painel.</p>
+              <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">O número de WhatsApp ainda não foi configurado no painel.</p>
             )}
-            <button type="button" onClick={copyMessage} className="w-full text-center text-sm font-bold text-white/55 underline">
+            <button type="button" onClick={copyMessage} className="w-full text-center text-sm font-bold text-brown-500 underline">
               {copied ? "Pedido copiado ✅" : "Copiar pedido em texto"}
             </button>
           </div>
@@ -940,15 +939,15 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
       </main>
 
       {/* Barra inferior fixa com subtotal e ação principal */}
-      <footer className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md border-t border-night-800 bg-night-900/95 px-4 pt-3 backdrop-blur safe-bottom sm:sticky sm:rounded-b-[2rem]">
+      <footer className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md border-t border-cream-300 bg-white/95 px-4 pt-3 backdrop-blur safe-bottom sm:sticky sm:rounded-b-[2rem]">
         {error && (
-          <p role="alert" className="mb-2 rounded-xl bg-red-500/15 px-3 py-2 text-sm font-bold text-red-300">{error}</p>
+          <p role="alert" className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>
         )}
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-wide text-white/55">Subtotal</p>
-            <p className="text-2xl font-extrabold leading-none">{formatBRL(view.phase === "builder" ? order.runningSubtotal : order.subtotal)}</p>
-            <p className="mt-0.5 text-[11px] leading-tight text-white/55">{footerHint}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-brown-500">Subtotal</p>
+            <p className="text-2xl font-extrabold leading-none text-brown-900">{formatBRL(view.phase === "builder" ? order.runningSubtotal : order.subtotal)}</p>
+            <p className="mt-0.5 text-[11px] leading-tight text-brown-500">{footerHint}</p>
           </div>
           {view.phase === "review" ? (
             <a
@@ -961,7 +960,7 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
               Enviar pedido pelo WhatsApp
             </a>
           ) : (
-            <button type="button" onClick={next} className="btn-neon flex-1">{primaryLabel}</button>
+            <button type="button" onClick={next} className="btn-gold flex-1">{primaryLabel}</button>
           )}
         </div>
       </footer>
@@ -973,40 +972,40 @@ export default function OrderBuilder({ menu }: { menu: MenuData }) {
 
 function IncludedBlock({ meal, protein, chosen, extras }: { meal: PublicMeal; protein?: MenuItem | null; chosen?: MenuItem[]; extras?: MenuItem[] }) {
   // O produto escolhido vem primeiro, depois proteína, inclusos e adicionais
-  const parts: string[] = [`${emojiFor(meal.name, "🍔")} ${meal.name}`];
+  const parts: string[] = [`${emojiFor(meal.name, "🍲")} ${meal.name}`];
   if (protein) parts.push(`${emojiFor(protein.name)} ${protein.name}`);
   meal.included.forEach((i) => parts.push(`${emojiFor(i.name)} ${i.name}`));
   chosen?.forEach((i) => parts.push(`${emojiFor(i.name)} ${i.name}`));
   extras?.forEach((i) => parts.push(`${emojiFor(i.name, "➕")} ${i.name}`));
   if (parts.length === 0) return null;
   return (
-    <section className="rounded-2xl border border-neon-cyan/25 bg-neon-cyan/10 px-4 py-3">
-      <p className="text-xs font-bold uppercase tracking-wide text-neon-cyan">Seu item até agora</p>
-      <p className="mt-1 text-sm font-bold text-white">{parts.join(" · ")}</p>
+    <section className="rounded-2xl border border-gold-400/25 bg-gold-50 px-4 py-3">
+      <p className="text-xs font-bold uppercase tracking-wide text-gold-600">Seu item até agora</p>
+      <p className="mt-1 text-sm font-bold text-brown-900">{parts.join(" · ")}</p>
     </section>
   );
 }
 
 function Detail({ label, items, highlight }: { label: string; items: string[]; highlight?: boolean }) {
   return (
-    <div className={highlight ? "rounded-xl bg-night-800 px-3 py-2" : ""}>
-      <p className="text-xs font-bold uppercase tracking-wide text-white/55">{label}</p>
-      <p className="text-sm font-semibold text-white">{items.join(highlight ? " " : ", ")}</p>
+    <div className={highlight ? "rounded-xl bg-cream-200 px-3 py-2" : ""}>
+      <p className="text-xs font-bold uppercase tracking-wide text-brown-500">{label}</p>
+      <p className="text-sm font-semibold text-brown-900">{items.join(highlight ? " " : ", ")}</p>
     </div>
   );
 }
 
 function Radio({ checked }: { checked: boolean }) {
   return (
-    <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${checked ? "border-neon-pink bg-neon-pink" : "border-night-700 bg-night-800"}`}>
-      {checked && <span className="h-3 w-3 rounded-full bg-white" />}
+    <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${checked ? "border-gold-400 bg-gold-400" : "border-brown-700 bg-brown-800"}`}>
+      {checked && <span className="h-3 w-3 rounded-full bg-brown-900" />}
     </span>
   );
 }
 
 function Check({ checked }: { checked: boolean }) {
   return (
-    <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 text-base font-extrabold text-white ${checked ? "border-neon-pink bg-neon-pink" : "border-night-700 bg-night-800"}`}>
+    <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 text-base font-extrabold text-cream-100 ${checked ? "border-gold-400 bg-gold-400" : "border-brown-700 bg-brown-800"}`}>
       {checked ? "✓" : ""}
     </span>
   );
@@ -1018,10 +1017,10 @@ function OptionRow({ item, selected, dimmed, kind, onClick, priceMode }: { item:
       {kind === "check" ? <Check checked={selected} /> : <Radio checked={selected} />}
       {item.imageUrl && <img src={item.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />}
       <span className="min-w-0 flex-1">
-        <span className="block text-base font-extrabold leading-tight">{item.name}</span>
-        {item.description && <span className="mt-0.5 block text-sm text-white/55">{item.description}</span>}
+        <span className="block text-base font-extrabold leading-tight text-brown-900">{item.name}</span>
+        {item.description && <span className="mt-0.5 block text-sm text-brown-500">{item.description}</span>}
       </span>
-      {item.priceCents > 0 && <span className="shrink-0 text-sm font-extrabold text-neon-gold">{priceMode === "extra" ? `+ ${formatBRL(item.priceCents)}` : formatBRL(item.priceCents)}</span>}
+      {item.priceCents > 0 && <span className="shrink-0 text-sm font-extrabold text-gold-500">{priceMode === "extra" ? `+ ${formatBRL(item.priceCents)}` : formatBRL(item.priceCents)}</span>}
     </button>
   );
 }
@@ -1032,54 +1031,54 @@ function DrinkRow({ item, qty, onQty }: { item: MenuItem; qty: number; onQty: (q
     <div className={`option-card ${qty > 0 ? "option-card-selected" : ""}`}>
       {item.imageUrl && <img src={item.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />}
       <span className="min-w-0 flex-1">
-        <span className="block text-base font-extrabold leading-tight">{item.name}</span>
-        {item.description && <span className="mt-0.5 block text-sm text-white/55">{item.description}</span>}
-        <span className="mt-0.5 block text-sm font-extrabold text-neon-gold">{formatBRL(item.priceCents)}</span>
+        <span className="block text-base font-extrabold leading-tight text-brown-900">{item.name}</span>
+        {item.description && <span className="mt-0.5 block text-sm text-brown-500">{item.description}</span>}
+        <span className="mt-0.5 block text-sm font-extrabold text-wine-700">{formatBRL(item.priceCents)}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
-        <button type="button" aria-label={`Menos ${item.name}`} onClick={() => onQty(qty - 1)} disabled={qty === 0} className="grid h-11 w-11 place-items-center rounded-full border-2 border-night-700 bg-night-800 text-xl font-extrabold text-white disabled:opacity-30">−</button>
-        <span className="w-6 text-center text-lg font-extrabold">{qty}</span>
-        <button type="button" aria-label={`Mais ${item.name}`} onClick={() => onQty(qty + 1)} className="grid h-11 w-11 place-items-center rounded-full bg-neon-pink text-xl font-extrabold text-white">+</button>
+        <button type="button" aria-label={`Menos ${item.name}`} onClick={() => onQty(qty - 1)} disabled={qty === 0} className="grid h-11 w-11 place-items-center rounded-full border-2 border-brown-700 bg-brown-800 text-xl font-extrabold text-cream-100 disabled:opacity-30">−</button>
+        <span className="w-6 text-center text-lg font-extrabold text-gold-400">{qty}</span>
+        <button type="button" aria-label={`Mais ${item.name}`} onClick={() => onQty(qty + 1)} className="grid h-11 w-11 place-items-center rounded-full bg-gold-400 text-xl font-extrabold text-brown-900">+</button>
       </span>
     </div>
   );
 }
 
 function EmptyNotice({ text }: { text: string }) {
-  return <p className="rounded-2xl border-2 border-dashed border-night-700 p-5 text-center text-white/55">{text}</p>;
+  return <p className="rounded-2xl border-2 border-dashed border-cream-300 p-5 text-center text-brown-500">{text}</p>;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="label !text-neon-gold">{label}</span>
+      <span className="label !text-gold-500">{label}</span>
       {children}
     </label>
   );
 }
 
 /** Bloco de valores. O sistema mostra apenas o subtotal; a taxa de entrega (quando há) é combinada pelo WhatsApp. */
-function Totals({ subtotal, receivingMode }: { subtotal: number; receivingMode: ReceivingMode | null }) {
+function Totals({ subtotal, receivingMode }: { subtotal: number; receivingMode: "pickup" | "own" | "app" | null }) {
   const pickup = receivingMode === "pickup";
   return (
-    <section className="rounded-3xl border border-neon-gold/25 bg-night-900 p-5 text-white">
+    <section className="rounded-3xl border border-gold-400/25 bg-brown-800 p-5 text-cream-100">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-base font-extrabold">Subtotal</span>
-        <span className="text-2xl font-extrabold text-neon-gold">{formatBRL(subtotal)}</span>
+        <span className="text-2xl font-extrabold text-gold-400">{formatBRL(subtotal)}</span>
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-3 text-sm">
         <span className="font-bold">Entrega</span>
         <span className="text-right">{pickup ? "retirada no local · sem taxa" : "consultar pelo WhatsApp"}</span>
       </div>
-      <div className="my-3 border-t border-dashed border-white/15" />
+      <div className="my-3 border-t border-dashed border-cream-100/20" />
       {pickup ? (
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-base font-extrabold">Total</span>
-          <span className="text-xl font-extrabold text-neon-gold">{formatBRL(subtotal)}</span>
+          <span className="text-xl font-extrabold text-gold-400">{formatBRL(subtotal)}</span>
         </div>
       ) : (
-        <p className="text-sm text-white/85">
-          <span className="font-extrabold text-white">Total final:</span> confirmado após consulta da entrega
+        <p className="text-sm text-cream-100/85">
+          <span className="font-extrabold text-cream-100">Total final:</span> confirmado após consulta da entrega
         </p>
       )}
     </section>

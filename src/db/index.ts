@@ -1,28 +1,28 @@
+import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import pg from "pg";
+import * as schema from "./schema";
 
-const databaseUrl = process.env.DATABASE_URL;
+const { Pool } = pg;
 
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
+// Constrói a string de conexão forçando SSL para nuvem (Supabase, Neon, etc.)
+// A DATABASE_URL deve vir do .env (local) ou da Vercel (produção).
+// Se não houver, falha rápido — melhor build falhar do que site no ar quebrado.
+function buildConnectionString() {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error("DATABASE_URL não definida. Configure no .env local ou na Vercel.");
+  }
+  // Supabase pooler (porta 6543) exige sslmode=require
+  // Evita duplicar parâmetros se já vier na URL
+  const hasSslMode = /[?&]sslmode=/.test(url);
+  return hasSslMode ? url : `${url}${url.includes("?") ? "&" : "?"}sslmode=require`;
 }
 
-// Bancos na nuvem (Supabase) exigem SSL; bancos locais (dev) não.
-const isLocalDatabase = /localhost|127\.0\.0\.1/.test(databaseUrl);
+const pool = new Pool({
+  connectionString: buildConnectionString(),
+  // Evita erro "prepared statement already exists" com pgbouncer (Supabase pooler)
+  max: 1,
+});
 
-const globalForDb = globalThis as typeof globalThis & {
-  __arenaNextJsPostgresqlPool?: Pool;
-};
-
-export const pool =
-  globalForDb.__arenaNextJsPostgresqlPool ??
-  new Pool({
-    connectionString: databaseUrl,
-    ssl: isLocalDatabase ? undefined : { rejectUnauthorized: false },
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.__arenaNextJsPostgresqlPool = pool;
-}
-
-export const db = drizzle(pool);
+export const db = drizzle(pool, { schema });

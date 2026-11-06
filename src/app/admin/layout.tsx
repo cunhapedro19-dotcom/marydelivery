@@ -1,28 +1,28 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Anton } from "next/font/google";
+import "../globals.css";
+
+/* Fonte de display (mesma do cardápio, para consistência) */
+const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: { default: "Mary Delivery — Painel", template: "%s · Painel" },
-  description: "Painel para administrar o cardápio do Mary Delivery.",
-  manifest: "/admin-manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Mary Delivery", statusBarStyle: "default" },
-  icons: { apple: "/icons/apple-touch-icon.png" },
-  robots: { index: false, follow: false },
+  title: { default: "Painel Delícias do Barão", template: "%s | Painel" },
+  description: "Painel administrativo do cardápio Delícias do Barão.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover",
   themeColor: "#1f6f8b",
 };
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh bg-admin-50 text-slate-900">
-      <div className="mx-auto w-full max-w-md px-4 pb-10">{children}</div>
-    </div>
+    <html lang="pt-BR" className={anton.variable}>
+      <body className="bg-admin-50 font-sans text-slate-900 antialiased">{children}</body>
+    </html>
   );
 }

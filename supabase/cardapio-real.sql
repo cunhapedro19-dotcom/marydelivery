@@ -1,138 +1,163 @@
 -- ═══════════════════════════════════════════════════════════════════════
--- Mary Delivery — cardápio REAL (lido do cardápio físico da casa)
---
+-- Delícias do Barão — cardápio REAL (quentinhas + bebidas)
 -- Como usar: Supabase → SQL Editor → New query → cole TUDO daqui → Run.
---
 -- O que ele faz:
---   1) Atualiza os dados do negócio (frase, horário, entrega, iFood);
---   2) Apaga o cardápio atual do Mary Delivery (produtos, adicionais e bebidas);
---   3) Insere o cardápio real: 22 produtos + 3 adicionais + 30 bebidas.
---
--- Pode rodar de novo sem duplicar: ele substitui o cardápio atual por este.
--- (Se você cadastrou bebida no painel manualmente, ela é substituída por esta lista.)
---
--- Fica de fora (o cardápio físico não mostra):
---   - dias de funcionamento e endereço de retirada — Configurações do painel.
+--   1) Atualiza os dados do negócio
+--   2) Apaga o cardápio atual do Delícias do Barão
+--   3) Insere o cardápio real: quentinhas (M/G) + bebidas
+-- Pode rodar de novo sem duplicar: substitui o cardápio atual por este.
 -- ═══════════════════════════════════════════════════════════════════════
 
 begin;
 
 -- 1) Dados do negócio
 update establishments set
-  description          = 'A fome bateu? Chama a Mary!',
-  opening_hours        = 'Aberto das 19h às 3h da manhã',
-  delivery_areas       = 'Muriqui, Praia do Saco e Itacuruçá',
-  app_delivery_enabled = true,
-  app_delivery_service = 'iFood',
+  description          = 'Quentinhas caseiras com sabor de casa.',
+  opening_hours        = 'Aberto das 11h às 14h e das 18h às 22h',
+  opening_days         = 'Segunda a Sábado',
+  delivery_areas       = 'Centro, Bairro Novo, Vila Rica',
+  own_delivery_enabled = true,
+  app_delivery_enabled = false,
   updated_at           = now()
-where slug = 'mary-delivery';
+where slug = 'delicias-do-barao';
 
--- 2) Limpa o cardápio atual (produtos, adicionais e bebidas do Mary Delivery)
+-- 2) Limpa o cardápio atual (produtos, adicionais e bebidas)
 delete from meal_items
   where meal_id in (
     select id from meals
-    where establishment_id = (select id from establishments where slug = 'mary-delivery')
+    where establishment_id = (select id from establishments where slug = 'delicias-do-barao')
   );
 delete from meals
-  where establishment_id = (select id from establishments where slug = 'mary-delivery');
+  where establishment_id = (select id from establishments where slug = 'delicias-do-barao');
 delete from menu_items
-  where establishment_id = (select id from establishments where slug = 'mary-delivery');
+  where establishment_id = (select id from establishments where slug = 'delicias-do-barao');
 
--- 3) Adicionais — "TURBINE SEU LANCHE" (valem pra todos os produtos)
+-- 3) Adicionais (extras que valem para todas as quentinhas)
 insert into menu_items (establishment_id, category, name, price_cents, sort_order)
 select e.id, 'extra', x.name, x.price, x.ord
 from establishments e, (values
-  ('Ovo',     200, 1),
-  ('Bacon',   300, 2),
-  ('Cheddar', 300, 3)
+  ('Ovo frito',     200, 1),
+  ('Bacon',         300, 2),
+  ('Queijo extra',  200, 3)
 ) as x(name, price, ord)
-where e.slug = 'mary-delivery';
+where e.slug = 'delicias-do-barao';
 
--- 4) Produtos do cardápio real, agrupados pelas seções do cardápio físico
---    (max_choices 0 = produto simples, sem escolha de proteína/acompanhamento)
-insert into meals (establishment_id, name, category, description, price_cents,
-                   sort_order, max_choices, allow_extras, allow_notes)
-select e.id, m.name, m.category, m.description, m.price,
-       m.ord, 0, m.extras, true
-from establishments e, (values
-  -- OS CAMPEÕES DA CASA
-  ('Clássico da Mary',      'Campeões da casa', 'Suculento, queijo derretido, alface e tomate fresquinhos.',         1400, 1, true),
-  ('Turbinado',             'Campeões da casa', 'Tudo isso + calabresa!',                                            2200, 2, true),
-  ('Duplo Cheddar',         'Campeões da casa', 'Duas carnes + cheddar escorrendo.',                                 2500, 3, true),
-  ('Hambúrguer de Picanha', 'Campeões da casa', 'Brioche, picanha 180g, cheddar derretido, alface, tomate e molho.', 2500, 4, true),
-  -- LINHA X • TÁ NO PONTO
-  ('X-Salada',              'Linha X', '', 1400, 1, true),
-  ('X-Calabresa',           'Linha X', '', 1400, 2, true),
-  ('X-Bacon',               'Linha X', '', 1500, 3, true),
-  ('X-Tudo',                'Linha X', '', 1400, 4, true),
-  ('X-Duplo',               'Linha X', '', 1700, 5, true),
-  ('X-Triplo',              'Linha X', '', 2000, 6, true),
-  ('X-Picanha',             'Linha X', '', 1800, 7, true),
-  ('X-Egg',                 'Linha X', '', 1200, 8, true),
-  ('Hambúrguer Simples',    'Linha X', '',  900, 9, true),
-  -- COMBOS QUE COMPENSAM
-  ('Combo Solteiro',        'Combos', 'Duplo Cheddar + Batata P + Guaravita 290ml', 3200, 1, false),
-  ('Combo Casal',           'Combos', '2 Clássicos + Batata P + 2 Guaravitas',      3500, 2, false),
-  ('Combo Família',         'Combos', '3 Turbinados + Batata G + Guaraná 1L',       7000, 3, false),
-  -- PORÇÕES
-  ('Nugget + Anel de Cebola', 'Porções', '', 2500, 1, false),
-  ('Nugget + Batata',         'Porções', '', 2500, 2, false),
-  ('Só Nugget',               'Porções', '', 1000, 3, false),
-  -- BOXES DE FRANGO FRITO (pedaços são diferentes de tiras — nomes como no cardápio físico)
-  ('Box com 10 tiras de filé de frango', 'Boxes', 'Tiras de filé de frango frito e crocante + molho especial', 2490, 1, false),
-  ('Box Frango P (6 pedaços)',           'Boxes', '6 pedaços de frango frito crocante + um molho especial',     2490, 2, false),
-  ('Box Frango M (12 pedaços)',          'Boxes', '12 pedaços de frango frito crocante + um molho especial',    4490, 3, false)
-) as m(name, category, description, price, ord, extras)
-where e.slug = 'mary-delivery';
-
--- 5) Bebidas da casa (o nome já leva o tamanho, pra não confundir na hora do pedido)
+-- 4) Bebidas
 insert into menu_items (establishment_id, category, name, price_cents, sort_order)
 select e.id, 'drink', x.name, x.price, x.ord
 from establishments e, (values
-  ('Coca-Cola Lata',           700, 1),
-  ('Coca-Cola Zero Lata',      700, 2),
-  ('Fanta Laranja Lata',       700, 3),
-  ('Fanta Uva Lata',           700, 4),
-  ('Guaraná Antártica Lata',   700, 5),
-  ('Sprite Lata',              700, 6),
-  ('Guaraviton Açaí 500ml',    600, 7),
-  ('Guaraviton Natural 500ml', 600, 8),
-  ('Guaravita 290ml',          400, 9),
-  ('H2O de Limão 500ml',       800, 10),
-  ('H2O de Limoneto 500ml',    800, 11),
-  ('Guaraná Antártica 1L',     900, 12),
-  ('Convenção de Uva 2L',     1100, 13),
-  ('Convenção de Limão 2L',   1100, 14),
-  ('Convenção de Guaraná',    1100, 15),
-  ('Sprite 2L',               1500, 16),
-  ('Fanta Laranja 2L',        1500, 17),
-  ('Fanta Uva 2L',            1500, 18),
-  ('Coca-Cola 2L',            2000, 19),
-  ('Coca-Cola Zero 2L',       2000, 20),
-  -- Sucos (300ml; "ao leite" leva o leite no nome, os outros são naturais)
-  ('Maracujá ao leite 300ml',  1000, 21),
-  ('Morango ao leite 300ml',   1000, 22),
-  ('Acerola 300ml',             700, 23),
-  ('Laranja 300ml',             700, 24),
-  ('Maracujá 300ml',            700, 25),
-  ('Morango 300ml',             700, 26),
-  ('Abacaxi 300ml',             700, 27),
-  ('Abacaxi com Hortelã 300ml', 700, 28),
-  ('Manga 300ml',               700, 29),
-  ('Goiaba 300ml',              700, 30)
+  ('Coca-Cola 2L (normal)',      1700, 1),
+  ('Coca-Cola 2L (zero)',        1700, 2),
+  ('Coca-Cola lata (normal)',     800, 3),
+  ('Coca-Cola lata (zero)',       800, 4),
+  ('Água 500 ml',                 400, 5),
+  ('Água com gás',                500, 6),
+  ('Guaraviton',                  700, 7),
+  ('Guaravita',                   300, 8),
+  ('Fanta uva lata',              700, 9),
+  ('Fanta laranja lata',          700, 10),
+  ('Guaraná lata',                700, 11),
+  ('Guaraná 1 litro',            1200, 12),
+  ('Guaraná 2 litros',           1600, 13),
+  ('Fanta uva 2 litros',         1600, 14),
+  ('Fanta laranja 2 litros',     1600, 15),
+  ('Coca-Cola 600 ml (normal)',   900, 16),
+  ('Coca-Cola 600 ml (zero)',     900, 17),
+  ('Fanta laranja 600 ml',        900, 18),
+  ('Fanta uva 600 ml',            900, 19),
+  ('H2OH! 500 ml',                800, 20),
+  ('Limoneto',                    800, 21)
 ) as x(name, price, ord)
-where e.slug = 'mary-delivery';
+where e.slug = 'delicias-do-barao';
+
+-- 5) Quentinhas — base: arroz, feijão, farofa + proteína + 2/3 acompanhamentos
+-- As quentinhas são produtos (meals) com escolhas de acompanhamentos (sides)
+-- Acompanhamentos disponíveis (sides): couve, salada, fritas, etc.
+insert into menu_items (establishment_id, category, name, price_cents, sort_order)
+select e.id, 'side', x.name, x.price, x.ord
+from establishments e, (values
+  ('Couve refogada',     0, 1),
+  ('Salada verde',       0, 2),
+  ('Batata frita',       0, 3),
+  ('Farofa extra',       0, 4),
+  ('Vinagrete',          0, 5)
+) as x(name, price, ord)
+where e.slug = 'delicias-do-barao';
+
+-- Proteínas (cada quentinha tem uma proteína fixa — a quentinha é o produto)
+-- Como as quentinhas já vêm com a proteína definida, não usamos 'protein' role
+-- O cliente escolhe a quentinha (produto) e depois os acompanhamentos (sides)
+
+-- Produtos: Quentinhas M e G
+insert into meals (establishment_id, name, category, description, price_cents,
+                   sort_order, max_choices, allow_extras, allow_notes)
+select e.id, m.name, m.category, m.description, m.price,
+       m.ord, 3, true, true  -- max_choices=3 (até 3 acompanhamentos)
+from establishments e, (values
+  -- Grelhado
+  ('Quentinha Grelhado M',       'Quentinhas', 'Arroz, feijão, farofa + grelhado + até 3 acompanhamentos', 2000, 1),
+  ('Quentinha Grelhado G',       'Quentinhas', 'Arroz, feijão, farofa + grelhado + até 3 acompanhamentos (porção grande)', 2200, 2),
+  -- Frango à Milanesa
+  ('Quentinha Frango à Milanesa M', 'Quentinhas', 'Arroz, feijão, farofa + frango à milanesa + até 3 acompanhamentos', 2000, 3),
+  ('Quentinha Frango à Milanesa G', 'Quentinhas', 'Arroz, feijão, farofa + frango à milanesa + até 3 acompanhamentos (porção grande)', 2200, 4),
+  -- Linguiça de Churrasco com Ovo
+  ('Quentinha Linguiça c/ Ovo M', 'Quentinhas', 'Arroz, feijão, farofa + linguiça de churrasco com ovo + até 3 acompanhamentos', 2000, 5),
+  ('Quentinha Linguiça c/ Ovo G', 'Quentinhas', 'Arroz, feijão, farofa + linguiça de churrasco com ovo + até 3 acompanhamentos (porção grande)', 2200, 6),
+  -- Fígado Acebolado
+  ('Quentinha Fígado Acebolado M', 'Quentinhas', 'Arroz, feijão, farofa + fígado acebolado + até 3 acompanhamentos', 2000, 7),
+  ('Quentinha Fígado Acebolado G', 'Quentinhas', 'Arroz, feijão, farofa + fígado acebolado + até 3 acompanhamentos (porção grande)', 2200, 8),
+  -- Carré com Couve
+  ('Quentinha Carré com Couve M', 'Quentinhas', 'Arroz, feijão, farofa + carré com couve + até 3 acompanhamentos', 2200, 9),
+  ('Quentinha Carré com Couve G', 'Quentinhas', 'Arroz, feijão, farofa + carré com couve + até 3 acompanhamentos (porção grande)', 2400, 10),
+  -- Frango à Parmegiana
+  ('Quentinha Frango à Parmegiana M', 'Quentinhas', 'Arroz, feijão, farofa + frango à parmegiana + até 3 acompanhamentos', 2400, 11),
+  ('Quentinha Frango à Parmegiana G', 'Quentinhas', 'Arroz, feijão, farofa + frango à parmegiana + até 3 acompanhamentos (porção grande)', 2600, 12),
+  -- Bife com Fritas
+  ('Quentinha Bife com Fritas M', 'Quentinhas', 'Arroz, feijão, farofa + bife com fritas + até 3 acompanhamentos', 2500, 13),
+  ('Quentinha Bife com Fritas G', 'Quentinhas', 'Arroz, feijão, farofa + bife com fritas + até 3 acompanhamentos (porção grande)', 2700, 14),
+  -- Peixe ao Molho de Camarão
+  ('Quentinha Peixe c/ Camarão M', 'Quentinhas', 'Arroz, feijão, farofa + peixe ao molho de camarão + até 3 acompanhamentos', 2500, 15),
+  ('Quentinha Peixe c/ Camarão G', 'Quentinhas', 'Arroz, feijão, farofa + peixe ao molho de camarão + até 3 acompanhamentos (porção grande)', 2700, 16),
+  -- Contrafilé à Milanesa
+  ('Quentinha Contrafilé Milanesa M', 'Quentinhas', 'Arroz, feijão, farofa + contrafilé à milanesa + até 3 acompanhamentos', 2600, 17),
+  ('Quentinha Contrafilé Milanesa G', 'Quentinhas', 'Arroz, feijão, farofa + contrafilé à milanesa + até 3 acompanhamentos (porção grande)', 2800, 18),
+  -- Contrafilé à Parmegiana
+  ('Quentinha Contrafilé Parmegiana M', 'Quentinhas', 'Arroz, feijão, farofa + contrafilé à parmegiana + até 3 acompanhamentos', 2700, 19),
+  ('Quentinha Contrafilé Parmegiana G', 'Quentinhas', 'Arroz, feijão, farofa + contrafilé à parmegiana + até 3 acompanhamentos (porção grande)', 2900, 20),
+  -- Grelhado à Parmegiana (NOVO)
+  ('Quentinha Grelhado Parmegiana M', 'Quentinhas', 'Arroz, feijão, farofa + grelhado à parmegiana + até 3 acompanhamentos', 2400, 21),
+  ('Quentinha Grelhado Parmegiana G', 'Quentinhas', 'Arroz, feijão, farofa + grelhado à parmegiana + até 3 acompanhamentos (porção grande)', 2900, 22),
+  -- Bife Grelhado à Parmegiana (NOVO)
+  ('Quentinha Bife Grelhado Parmegiana M', 'Quentinhas', 'Arroz, feijão, farofa + bife grelhado à parmegiana + até 3 acompanhamentos', 2700, 23),
+  ('Quentinha Bife Grelhado Parmegiana G', 'Quentinhas', 'Arroz, feijão, farofa + bife grelhado à parmegiana + até 3 acompanhamentos (porção grande)', 2900, 24)
+) as m(name, category, description, price, ord)
+where e.slug = 'delicias-do-barao';
+
+-- Vincula acompanhamentos (sides) a TODAS as quentinhas como 'choice'
+insert into meal_items (meal_id, itemId, role)
+select m.id, mi.id, 'choice'
+from meals m
+join establishments e on e.id = m.establishment_id
+join menu_items mi on mi.establishment_id = e.id and mi.category = 'side'
+where e.slug = 'delicias-do-barao';
+
+-- Vincula adicionais (extras) a TODAS as quentinhas como 'extra' (opcional)
+insert into meal_items (meal_id, itemId, role)
+select m.id, mi.id, 'extra'
+from meals m
+join establishments e on e.id = m.establishment_id
+join menu_items mi on mi.establishment_id = e.id and mi.category = 'extra'
+where e.slug = 'delicias-do-barao';
 
 commit;
 
--- Confere o resultado: deve listar os 22 produtos com os preços
+-- Confere o resultado
 select category, name, price_cents / 100.0 as preco
 from meals
-where establishment_id = (select id from establishments where slug = 'mary-delivery')
+where establishment_id = (select id from establishments where slug = 'delicias-do-barao')
 order by category, sort_order;
 
--- ...e os 33 adicionais + bebidas
 select category, name, price_cents / 100.0 as preco
 from menu_items
-where establishment_id = (select id from establishments where slug = 'mary-delivery')
+where establishment_id = (select id from establishments where slug = 'delicias-do-barao')
 order by category, sort_order;

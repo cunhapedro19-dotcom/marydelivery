@@ -1,16 +1,32 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
 
+const ITERATIONS = 100_000;
+const KEY_LENGTH = 32;
+const ALGORITHM = "sha256";
+
+/** Gera hash PBKDF2 (salt:hash em hex, separado por dois pontos). */
 export function hashPassword(password: string): string {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
+  const salt = randomBytes(16);
+  const hash = createHash(ALGORITHM)
+    .update(password)
+    .update(salt)
+    .digest();
+  let derived = Buffer.from(password);
+  for (let i = 0; i < ITERATIONS; i++) {
+    derived = createHash(ALGORITHM).update(derived).update(salt).digest();
+  }
+  return `${salt.toString("hex")}:${derived.toString("hex")}`;
 }
 
+/** Verifica senha contra hash no formato salt:hash. */
 export function verifyPassword(password: string, stored: string): boolean {
-  const [salt, hash] = stored.split(":");
-  if (!salt || !hash) return false;
-  const candidate = scryptSync(password, salt, 64);
-  const expected = Buffer.from(hash, "hex");
-  if (candidate.length !== expected.length) return false;
-  return timingSafeEqual(candidate, expected);
+  const [saltHex, hashHex] = stored.split(":");
+  if (!saltHex || !hashHex) return false;
+  const salt = Buffer.from(saltHex, "hex");
+  const expected = Buffer.from(hashHex, "hex");
+  let derived = Buffer.from(password);
+  for (let i = 0; i < ITERATIONS; i++) {
+    derived = createHash(ALGORITHM).update(derived).update(salt).digest();
+  }
+  return timingSafeEqual(derived, expected);
 }
